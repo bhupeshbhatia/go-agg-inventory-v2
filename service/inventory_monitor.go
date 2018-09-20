@@ -8,7 +8,6 @@ import (
 	mongo "github.com/TerrexTech/go-mongoutils/mongo"
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/connectDB"
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
-	"github.com/gofrs/uuid"
 	mgo "github.com/mongodb/mongo-go-driver/mongo"
 	"github.com/pkg/errors"
 )
@@ -23,7 +22,7 @@ type InventoryData struct {
 	SearchField      string
 	GetValue         interface{}
 	FilterByName     string
-	FilterByItemId   uuid.UUID
+	FilterByItemId   int64
 	GetProductByDate string
 	StartDate        int64
 	YesterdayTime    int64
@@ -72,7 +71,7 @@ func GetMarshal(inventory *model.Inventory) ([]byte, error) {
 
 func AddProduct(data InventoryData) (*mgo.InsertOneResult, error) {
 
-	if data.FilterByName == "item_id" && (uuid.UUID{}).String() == "" {
+	if data.FilterByName == "item_id" && (data.Product.ItemID == 0) {
 		return nil, errors.New("Error inserting record. No item_id found")
 	}
 
@@ -107,7 +106,7 @@ func UpdateProduct(data InventoryData) (*mgo.UpdateResult, error) {
 	filter := &model.Inventory{
 		ItemID: data.FilterByItemId,
 	}
-	if data.FilterByItemId.String() == "" {
+	if data.FilterByItemId == 0 {
 		return nil, errors.New("item_id cannot be 0")
 	}
 
@@ -137,7 +136,7 @@ func UpdateProduct(data InventoryData) (*mgo.UpdateResult, error) {
 
 func DeleteProduct(data InventoryData) (*mgo.DeleteResult, error) {
 
-	if data.FilterByName == "item_id" && (uuid.UUID{}).String() == "" {
+	if data.FilterByName == "item_id" && (data.Product.ItemID == 0) {
 		return nil, errors.New("Error deleting product.")
 	}
 

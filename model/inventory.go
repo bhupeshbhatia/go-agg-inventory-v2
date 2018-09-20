@@ -1,12 +1,8 @@
 package model
 
-import (
-	"github.com/gofrs/uuid"
-)
-
 //Inventory represents inventory collection
 type Inventory struct {
-	ItemID uuid.UUID `bson:"item_id,omitempty" json:"item_id,omitempty"`
+	ItemID int64 `bson:"item_id,omitempty" json:"item_id,omitempty"`
 	// RsCustomerID     string    `bson:"rs_customer_id,omitempty" json:"rs_customer_id,omitempty"`
 	Name        string  `bson:"name,omitempty" json:"name,omitempty"`
 	Origin      string  `bson:"origin,omitempty" json:"origin,omitempty"`

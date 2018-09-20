@@ -36,6 +36,43 @@ func JsonForGetJSONString() string {
 // 	AggregateID:      1,
 // }
 
+func JsonForProductBeginning() []string {
+	const data = map[string]interface{}{
+		"item_id": 1,
+		"name": "This is bulllllllllll",
+		"origin": "PEI, Canada",
+		"device_id": 233332,
+		"date_arrived": 15374686249,
+		"expiry_date": 15374686252,
+		"price": 106.00,
+		"total_weight": 1000.00,
+		"location": "A1",
+	},
+	map[string]interface{}{
+		"item_id": 1,
+		"name": "This is bulllllllllll",
+		"origin": "PEI, Canada",
+		"device_id": 233332,
+		"date_arrived": 15374686249,
+		"expiry_date": 15374686252,
+		"price": 106.00,
+		"total_weight": 1000.00,
+		"location": "A1"
+	},
+	map[string]interface{}{
+		"item_id": 1,
+		"name": "This is bulllllllllll",
+		"origin": "PEI, Canada",
+		"device_id": 233332,
+		"date_arrived": 15374686249,
+		"expiry_date": 15374686252,
+		"price": 106.00,
+		"total_weight": 1000.00,
+		"location": "A1",
+	}]
+	return data
+}
+
 func JsonForAddProduct() string {
 	var FoodProduct = `{
 		"fruit_id": 1,
