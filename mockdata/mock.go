@@ -3,7 +3,7 @@ package mockdata
 import (
 	"time"
 
-	"github.com/bhupeshbhatia/go-agg-inven-mongo-cmd/model"
+	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
 )
 
 func JsonForGetJSONString() string {

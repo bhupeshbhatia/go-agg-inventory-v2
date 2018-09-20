@@ -6,7 +6,9 @@ import (
 	"log"
 
 	mongo "github.com/TerrexTech/go-mongoutils/mongo"
-	"github.com/bhupeshbhatia/go-agg-inven-mongo-cmd/model"
+	"github.com/bhupeshbhatia/go-agg-inventory-v2/connectDB"
+	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
+	"github.com/gofrs/uuid"
 	mgo "github.com/mongodb/mongo-go-driver/mongo"
 	"github.com/pkg/errors"
 )
@@ -16,24 +18,47 @@ import (
 // var AggregateID = int64(1)
 
 type InventoryData struct {
-	Product     *model.Inventory
-	MongoTable  *mongo.Collection
-	SearchField string
-	GetValue    interface{}
-	FilterName  string
-	FilterValue int64
+	Product          *model.Inventory
+	MongoCollection  *mongo.Collection
+	SearchField      string
+	GetValue         interface{}
+	FilterByName     string
+	FilterByItemId   uuid.UUID
+	GetProductByDate string
+	StartDate        int64
+	YesterdayTime    int64
 }
 
-func GetInventoryJSON(jsonString []byte) (*model.Inventory, error) {
-	var inventory model.Inventory
-	err := json.Unmarshal(jsonString, &inventory)
+func GetMongoCollection() (*connectDB.Db, error) {
+	Db, err := connectDB.ConfirmDbExists()
+	if err != nil {
+		err = errors.Wrap(err, "Mongo client unable to connect")
+		log.Println(err)
+	}
+	return Db, nil
+}
+
+func GetInventoryFromJSON(jsonString []byte) (*model.Inventory, error) {
+	inventory := &model.Inventory{}
+	err := json.Unmarshal(jsonString, inventory)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
 		log.Println(err)
 		return nil, err
 	}
-	return &inventory, nil
+	return inventory, nil
 }
+
+// func GetInventoryFromJSON(jsonString []byte) (*[]model.Inventory, error) {
+// 	inventory := &[]model.Inventory{}
+// 	err := json.Unmarshal(jsonString, inventory)
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+// 		log.Println(err)
+// 		return nil, err
+// 	}
+// 	return inventory, nil
+// }
 
 func GetMarshal(inventory *model.Inventory) ([]byte, error) {
 	inv, err := json.Marshal(inventory)
@@ -45,26 +70,26 @@ func GetMarshal(inventory *model.Inventory) ([]byte, error) {
 	return inv, nil
 }
 
-func AddFood(data InventoryData) (*mgo.InsertOneResult, error) {
+func AddProduct(data InventoryData) (*mgo.InsertOneResult, error) {
 
-	if data.FilterName == "Fruit_ID" && data.Product.FruitID == 0 {
-		return nil, errors.New("Error inserting record. No Fruit_ID found")
+	if data.FilterByName == "item_id" && (uuid.UUID{}).String() == "" {
+		return nil, errors.New("Error inserting record. No item_id found")
 	}
 
-	insertResult, err := data.MongoTable.InsertOne(data.Product)
+	insertResult, err := data.MongoCollection.InsertOne(data.Product)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to insert event")
 		log.Println(err)
 		return nil, err
 	}
 
-	fmt.Println(insertResult)
+	// fmt.Println(insertResult)
 	return insertResult, nil
 	// return nil, nil
 }
 
 func GetFoodProducts(data InventoryData) ([]interface{}, error) {
-	findResults, err := data.MongoTable.FindMap(map[string]interface{}{
+	findResults, err := data.MongoCollection.FindMap(map[string]interface{}{
 		data.SearchField: map[string]interface{}{
 			"$eq": data.GetValue,
 		},
@@ -78,25 +103,28 @@ func GetFoodProducts(data InventoryData) ([]interface{}, error) {
 	return findResults, nil
 }
 
-func UpdateAgg(data InventoryData) (*mgo.UpdateResult, error) {
+func UpdateProduct(data InventoryData) (*mgo.UpdateResult, error) {
 	filter := &model.Inventory{
-		FruitID: data.FilterValue,
+		ItemID: data.FilterByItemId,
 	}
-	if data.FilterValue == 0 {
-		return nil, errors.New("Fruit_ID cannot be 0")
+	if data.FilterByItemId.String() == "" {
+		return nil, errors.New("item_id cannot be 0")
 	}
 
 	//how to convert struct to map?
 
 	update := &map[string]interface{}{
-		"fruit_id":        data.Product.FruitID,
-		"origin":          data.Product.Origin,
-		"device_id":       data.Product.DeviceID,
-		"sale_price":      data.Product.SalePrice,
-		"original_weight": data.Product.OriginalWeight,
+		"item_id":      data.Product.ItemID,
+		"name":         data.Product.Name,
+		"origin":       data.Product.Origin,
+		"date_arrived": data.Product.DateArrived,
+		"device_id":    data.Product.DeviceID,
+		"price":        data.Product.Price,
+		"total_weight": data.Product.TotalWeight,
+		"location":     data.Product.Location,
 	}
 
-	updateResult, err := data.MongoTable.UpdateMany(filter, update)
+	updateResult, err := data.MongoCollection.UpdateMany(filter, update)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to update event")
 		log.Println(err)
@@ -107,18 +135,18 @@ func UpdateAgg(data InventoryData) (*mgo.UpdateResult, error) {
 	return updateResult, nil
 }
 
-func DeleteAgg(data InventoryData) (*mgo.DeleteResult, error) {
+func DeleteProduct(data InventoryData) (*mgo.DeleteResult, error) {
 
-	if data.FilterName == "Fruit_ID" && data.FilterValue == 0 {
+	if data.FilterByName == "item_id" && (uuid.UUID{}).String() == "" {
 		return nil, errors.New("Error deleting product.")
 	}
 
-	if data.FilterName != "Fruit_ID" {
+	if data.FilterByName != "item_id" {
 		return nil, errors.New("Error deleting product.")
 	}
 
-	deleteResult, err := data.MongoTable.DeleteMany(&model.Inventory{
-		FruitID: data.Product.FruitID,
+	deleteResult, err := data.MongoCollection.DeleteMany(&model.Inventory{
+		ItemID: data.Product.ItemID,
 	})
 	if err != nil {
 		err = errors.Wrap(err, "Unable to delete event")
@@ -131,10 +159,36 @@ func DeleteAgg(data InventoryData) (*mgo.DeleteResult, error) {
 	return deleteResult, nil
 }
 
+func GetProductInRange(data InventoryData) ([]interface{}, error) {
+	// if data.FilterByName == "expiry_date" && (uuid.UUID{}).String() == "" {
+	// 	return nil, errors.New("Error Receiving product.")
+	// }
+
+	// if data.FilterByName != "expiry_date" {
+	// 	return nil, errors.New("Unable to get product.")
+	// }
+
+	log.Println("******", data.StartDate)
+	findResults, err := data.MongoCollection.FindMap(map[string]interface{}{
+
+		"expiry_date": map[string]int64{
+			"$lt": data.StartDate,
+		},
+	})
+	if err != nil {
+		err = errors.Wrap(err, "Error while fetching product.")
+		log.Println(err)
+		return nil, err
+	}
+
+	return findResults, nil
+
+}
+
 // func findProductById(inventory *model.Inventory, mgTable *mongo.Collection) ([]interface{}, error) {
 
 // 	findResult, err := mgTable.Find(&model.Inventory{
-// 		FruitID: inventory.FruitID,
+// 		ItemID: inventory.ItemID,
 // 	})
 // 	if err != nil {
 // 		err = errors.Wrap(err, "Unable to find product")

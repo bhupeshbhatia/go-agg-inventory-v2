@@ -26,7 +26,7 @@ func NewKafkaConAdapter(c *KafkaConAdapter) (*consumer.Consumer, error) {
 	return consumer.New(config)
 }
 
-func CreateConsumer(c *KafkaConAdapter) (*KafkaConAdapter, error) {
+func Consume(c *KafkaConAdapter) (*KafkaConAdapter, error) {
 	consumerEvent, err := NewKafkaConAdapter(c)
 	if err != nil {
 		err = errors.Wrap(err, "Error Creating ConsumerGroup for Events")

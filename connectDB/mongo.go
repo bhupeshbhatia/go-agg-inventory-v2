@@ -1,55 +1,127 @@
 package connectDB
 
 import (
+	"os"
+
 	mongo "github.com/TerrexTech/go-mongoutils/mongo"
-	"github.com/bhupeshbhatia/go-agg-inven-mongo-cmd/model"
+	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
+	"github.com/pkg/errors"
 )
 
-// CreateClient creates a MongoDB-Client.
-func CreateClient() (*mongo.Client, error) {
-	// Would ideally set these config-params as environment vars
-	config := mongo.ClientConfig{
-		Hosts:               []string{"localhost:27017"},
-		Username:            "root",
-		Password:            "root",
-		TimeoutMilliseconds: 5000,
+type Db struct {
+	Collection *mongo.Collection
+}
+
+func ConfirmDbExists() (*Db, error) {
+	hosts := os.Getenv("MONGO_HOSTS")
+	username := os.Getenv("MONGO_USERNAME")
+	password := os.Getenv("MONGO_PASSWORD")
+	database := os.Getenv("MONGO_DATABASE")
+	collection := os.Getenv("MONGO_COLLECTION")
+
+	clientConfig := mongo.ClientConfig{
+		Hosts:               []string{hosts},
+		Username:            username,
+		Password:            password,
+		TimeoutMilliseconds: 3000,
 	}
 
 	// ====> MongoDB Client
-	client, err := mongo.NewClient(config)
-	// Let the parent functions handle error, always -.-
-	// (Even though in these examples, we won't, for simplicity)
-	return client, err
-}
+	client, err := mongo.NewClient(clientConfig)
+	if err != nil {
+		err = errors.Wrap(err, "Mongo client not available")
+		return nil, err
+	}
 
-// createCollection demonstrates creating the collection and the associated database.
-func CreateCollection(client *mongo.Client, name string, database string) (*mongo.Collection, error) {
-	// ====> Collection Configuration
 	conn := &mongo.ConnectionConfig{
 		Client:  client,
 		Timeout: 5000,
 	}
+
 	// Index Configuration
 	indexConfigs := []mongo.IndexConfig{
 		mongo.IndexConfig{
 			ColumnConfig: []mongo.IndexColumnConfig{
 				mongo.IndexColumnConfig{
-					Name:        "fruit_id",
+					Name:        "item_id",
 					IsDescOrder: false,
 				},
 			},
 			IsUnique: true,
-			Name:     "fruit_id_index",
+			Name:     "item_id_index",
 		},
 	}
 
 	// ====> Create New Collection
-	c := &mongo.Collection{
+	colConfig := &mongo.Collection{
 		Connection:   conn,
-		Name:         name,
+		Name:         collection,
 		Database:     database,
 		SchemaStruct: &model.Inventory{},
 		Indexes:      indexConfigs,
 	}
-	return mongo.EnsureCollection(c)
+	c, err := mongo.EnsureCollection(colConfig)
+	if err != nil {
+		err = errors.Wrap(err, "Error creating DB-client")
+		return nil, err
+	}
+	return &Db{
+		Collection: c,
+	}, nil
+
 }
+
+// // CreateClient creates a MongoDB-Client.
+// func CreateClient() (*mongo.Client, error) {
+// 	// Would ideally set these config-params as environment vars
+// 	config := mongo.ClientConfig{
+// 		Hosts:               []string{"localhost:27017"},
+// 		Username:            "root",
+// 		Password:            "root",
+// 		TimeoutMilliseconds: 3000,
+// 	}
+
+// 	// ====> MongoDB Client
+// 	client, err := mongo.NewClient(config)
+
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Error creating DB-client")
+// 	return client, err
+// }
+
+// // createCollection demonstrates creating the collection and the associated database.
+// func CreateCollection(client *mongo.Client, name string, database string) (*mongo.Collection, error) {
+// 	// ====> Collection Configuration
+// 	conn := &mongo.ConnectionConfig{
+// 		Client:  client,
+// 		Timeout: 5000,
+// 	}
+// 	// Index Configuration
+// 	indexConfigs := []mongo.IndexConfig{
+// 		mongo.IndexConfig{
+// 			ColumnConfig: []mongo.IndexColumnConfig{
+// 				mongo.IndexColumnConfig{
+// 					Name:        "fruit_id",
+// 					IsDescOrder: false,
+// 				},
+// 			},
+// 			IsUnique: true,
+// 			Name:     "fruit_id_index",
+// 		},
+// 	}
+
+// 	// ====> Create New Collection
+// 	colConfig := &mongo.Collection{
+// 		Connection:   conn,
+// 		Name:         name,
+// 		Database:     database,
+// 		SchemaStruct: &model.Inventory{},
+// 		Indexes:      indexConfigs,
+// 	}
+// 	c, err := mongo.EnsureCollection(collConfig)
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Error creating DB-client")
+// 		return nil, err
+// 	}
+// 	return mongo.EnsureCollection(c), nil
+// }

@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bhupeshbhatia/go-agg-inven-mongo-cmd/mockdata"
+	"github.com/bhupeshbhatia/go-agg-inventory-v2/mockdata"
 
 	mongo "github.com/TerrexTech/go-mongoutils/mongo"
-	"github.com/bhupeshbhatia/go-agg-inven-mongo-cmd/model"
+	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
