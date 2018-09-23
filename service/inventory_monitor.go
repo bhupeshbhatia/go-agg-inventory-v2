@@ -20,7 +20,7 @@ type InvSearch struct {
 	TimePeriod int   `json:"time_period"`
 }
 
-func LoadData(w http.ResponseWriter, r *http.Request) {
+func BatchInsertData(w http.ResponseWriter, r *http.Request) {
 
 	// file := strings.NewReader(mockdata.Testing())
 	// var inv []model.Inventory
@@ -51,6 +51,7 @@ func LoadData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, val := range inventory {
+		log.Println(val.ItemID)
 		insertResult, err := Db.Collection.InsertOne(val)
 		if err != nil {
 			err = errors.Wrap(err, "Unable to insert event")
@@ -65,7 +66,7 @@ func LoadData(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func GetBatchData(w http.ResponseWriter, r *http.Request) {
+func GetDataFromCollection(w http.ResponseWriter, r *http.Request) {
 	//Mongo collection
 	Db, err := connectDB.ConfirmDbExists()
 	if err != nil {
@@ -140,6 +141,7 @@ func AddProductHandler(w http.ResponseWriter, r *http.Request) {
 	for _, val := range inventory {
 		if val.ItemID.String() != "" { //need to change this
 			val.Timestamp = time.Now().Unix()
+			log.Println(val.ItemID)
 			insertResult, err := Db.Collection.InsertOne(val)
 			if err != nil {
 				err = errors.Wrap(err, "Unable to insert event")
