@@ -336,5 +336,4 @@ func SearchInRange(w http.ResponseWriter, r *http.Request) {
 		w.Write(marshalInventory)
 	}
 	w.WriteHeader(http.StatusOK)
-
 }
