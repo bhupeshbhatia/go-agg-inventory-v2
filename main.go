@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/bhupeshbhatia/go-agg-inventory-v2/controller"
+	"github.com/bhupeshbhatia/go-agg-inventory-v2/service"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
@@ -25,19 +25,22 @@ func initRoutes() *mux.Router {
 }
 
 func setAuthenticationRoute(router *mux.Router) *mux.Router {
-	router.HandleFunc("/add-product", controller.AddProductHandler).Methods("POST")
-	router.HandleFunc("/update-product", controller.UpdateProductHandler).Methods("POST")
-	router.HandleFunc("/delete-product", controller.DeleteProductHandler).Methods("POST")
-	router.HandleFunc("/get-product-range", controller.GetProductRangeHandler).Methods("POST")
+	router.HandleFunc("/add-product", service.AddProductHandler).Methods("POST")
+	router.HandleFunc("/update-product", service.UpdateProductHandler).Methods("POST")
+	router.HandleFunc("/delete-product", service.DeleteProductHandler).Methods("POST")
+	router.HandleFunc("/search-range", service.SearchInRange).Methods("POST")
+	router.HandleFunc("/get-inv", service.GetBatchData).Methods("GET")
+	router.HandleFunc("/load-data", service.LoadData).Methods("GET")
+
 	// router.Handle("/fileaccess",
 	// 	negroni.New(
-	// 		negroni.HandlerFunc(controller.FileInsideServer),
+	// 		negroni.HandlerFunc(service.FileInsideServer),
 	// 	)).Methods("GET")
 
 	// router.Handle("/logout",
 	//     negroni.New(
 	//         negroni.HandlerFunc(authentication.RequireTokenAuthentication),
-	//         negroni.HandlerFunc(controllers.Logout),
+	//         negroni.HandlerFunc(services.Logout),
 	//     )).Methods("GET")
 
 	return router
