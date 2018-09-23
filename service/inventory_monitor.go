@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/mongodb/mongo-go-driver/mongo/findopt"
+
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/mockdata"
 
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/connectDB"
@@ -85,7 +87,9 @@ func GetDataFromCollection(w http.ResponseWriter, r *http.Request) {
 		"timestamp": map[string]int64{
 			"$lt": timestamp,
 		},
-	})
+	},
+		findopt.Limit(100),
+	)
 	if err != nil {
 		err = errors.Wrap(err, "Error while fetching product.")
 		log.Println(err)
@@ -308,7 +312,9 @@ func SearchInRange(w http.ResponseWriter, r *http.Request) {
 			"$lt": &searchInv.SearchTime,
 			"$gt": &startTime,
 		},
-	})
+	},
+		findopt.Limit(100),
+	)
 	if err != nil {
 		err = errors.Wrap(err, "Error while fetching product.")
 		log.Println(err)
