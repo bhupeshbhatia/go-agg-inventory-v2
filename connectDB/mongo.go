@@ -65,6 +65,8 @@ func ConfirmDbExists() (*Db, error) {
 		err = errors.Wrap(err, "Error creating DB-client")
 		return nil, err
 	}
+
+	
 	return &Db{
 		Collection: c,
 	}, nil

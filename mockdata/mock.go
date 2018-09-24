@@ -30,9 +30,9 @@ func JsonForGetJSONString() string {
 // 	AggregateID:      1,
 // }
 
-func StartUpLoadData() []byte {
+func StartUpLoadData() string {
 
-	FoodProduct := []byte(`{
+	FoodProduct := `[{
 		"item_id": "be269ec2-83d8-4a7b-8513-840eedc079d9",
 		"name": "This is bulllllllllll",
 		"origin": "ON, Canada",
@@ -64,7 +64,7 @@ func StartUpLoadData() []byte {
 		"price": 106.00,
 		"total_weight": 1000.00,
 		"location": "A1"
-	}`)
+	}]`
 
 	return FoodProduct
 }

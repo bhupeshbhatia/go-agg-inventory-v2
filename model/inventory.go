@@ -1,27 +1,29 @@
 package model
 
-import "github.com/TerrexTech/uuuid"
+import (
+	"github.com/TerrexTech/uuuid"
+)
 
 //Inventory represents inventory collection
 type Inventory struct {
-	ItemID      uuuid.UUID `bson:"item_id,omitempty" json:"item_id,omitempty"`
-	Name        string     `bson:"name,omitempty" json:"name,omitempty"`
-	Origin      string     `bson:"origin,omitempty" json:"origin,omitempty"`
-	DeviceID    int64      `bson:"device_id,omitempty" json:"device_id,omitempty"`
-	TotalWeight float64    `bson:"total_weight,omitempty" json:"total_weight,omitempty"`
-	Price       float64    `bson:"price,omitempty" json:"price,omitempty"`
-	Location    string     `bson:"location,omitempty" json:"location,omitempty"`
-	DateArrived int64      `bson:"date_arrived,omitempty" json:"date_arrived,omitempty"`
-	ExpiryDate  int64      `bson:"expiry_date,omitempty" json:"expiry_date,omitempty"`
-	Timestamp   int64      `bson:"timestamp,omitempty" json:"timestamp,omitempty"`
-	// RsCustomerID     string    `bson:"rs_customer_id,omitempty" json:"rs_customer_id,omitempty"`
-	// WasteWeight      float64   `bson:"waste_weight,omitempty" json:"waste_weight,omitempty"`
-	// DonateWeight     float64   `bson:"donate_weight,omitempty" json:"donate_weight,omitempty"`
-	// AggregateVersion int64  `bson:"aggregate_version,omitempty" json:"aggregate_version,omitempty"`
-	// AggregateID      int64  `bson:"aggregate_id,omitempty" json:"aggregate_id,omitempty"`
-	// DateSold         time.Time `bson:"date_sold,omitempty" json:"date_sold,omitempty"`
-	// SalePrice        float64   `bson:"sale_price,omitempty" json:"sale_price,omitempty"`
-	// OriginalWeight float64   `bson:"original_weight,omitempty" json:"original_weight,omitempty"`
+	ItemID           uuuid.UUID `bson:"item_id,omitempty" json:"item_id,omitempty"`
+	Name             string     `bson:"name,omitempty" json:"name,omitempty"`
+	Origin           string     `bson:"origin,omitempty" json:"origin,omitempty"`
+	DeviceID         int64      `bson:"device_id,omitempty" json:"device_id,omitempty"`
+	TotalWeight      float64    `bson:"total_weight,omitempty" json:"total_weight,omitempty"`
+	Price            float64    `bson:"price,omitempty" json:"price,omitempty"`
+	Location         string     `bson:"location,omitempty" json:"location,omitempty"`
+	DateArrived      int64      `bson:"date_arrived,omitempty" json:"date_arrived,omitempty"`
+	ExpiryDate       int64      `bson:"expiry_date,omitempty" json:"expiry_date,omitempty"`
+	Timestamp        int64      `bson:"timestamp,omitempty" json:"timestamp,omitempty"`
+	RsCustomerID     string     `bson:"rs_customer_id,omitempty" json:"rs_customer_id,omitempty"`
+	WasteWeight      float64    `bson:"waste_weight,omitempty" json:"waste_weight,omitempty"`
+	DonateWeight     float64    `bson:"donate_weight,omitempty" json:"donate_weight,omitempty"`
+	AggregateVersion int64      `bson:"aggregate_version,omitempty" json:"aggregate_version,omitempty"`
+	AggregateID      int64      `bson:"aggregate_id,omitempty" json:"aggregate_id,omitempty"`
+	DateSold         int64      `bson:"date_sold,omitempty" json:"date_sold,omitempty"`
+	SalePrice        float64    `bson:"sale_price,omitempty" json:"sale_price,omitempty"`
+	OriginalWeight   float64    `bson:"original_weight,omitempty" json:"original_weight,omitempty"`
 }
 
 type marshalInventory struct {

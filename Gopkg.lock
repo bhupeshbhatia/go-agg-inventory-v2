@@ -373,11 +373,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6c54cefa33de85c47075aae30f1d1a333967c405272010bb76aa943467e4cbae"
+  digest = "1:4c18b929ff2f30ebf16c43fd9e0755fad03b290af199c5bcd82dde4c80cf8781"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "d47a0f3392421c5624713c9a19fe781f651f8a50"
+  revision = "90868a75fefd03942536221d7c0e2f84ec62a668"
 
 [[projects]]
   digest = "1:4392fcf42d5cf0e3ff78c96b2acf8223d49e4fdc53eb77c99d2f8dfe4680e006"
@@ -453,7 +453,6 @@
     "github.com/TerrexTech/uuuid",
     "github.com/gorilla/mux",
     "github.com/joho/godotenv",
-    "github.com/mongodb/mongo-go-driver/bson",
     "github.com/mongodb/mongo-go-driver/mongo/findopt",
     "github.com/onsi/ginkgo",
     "github.com/onsi/gomega",

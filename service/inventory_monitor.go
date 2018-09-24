@@ -43,9 +43,11 @@ func BatchInsertData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	invBody := []byte(mockdata.StartUpLoadData())
+
 	//Convert body of type []byte into type []model.Inventory{}
 	inventory := []model.Inventory{}
-	err = json.Unmarshal(mockdata.StartUpLoadData(), &inventory)
+	err = json.Unmarshal(invBody, &inventory)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal product into Inventory struct")
 		log.Println(err)
@@ -469,7 +471,7 @@ func GetCountOfTotalInventory(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func GetAvgCountOfProductsOverTime(w http.ResponseWriter, r *http.Request) {
+func GetAvgCountOfProductsPerHour(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -495,12 +497,15 @@ func GetAvgCountOfProductsOverTime(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	startTime := searchInv.MaxTime - 3600
+
 	//here we need to send one hour, weekly, monthly
 
 	findResults, err := Db.Collection.FindMap(map[string]interface{}{
 
 		"timestamp": map[string]*int64{
 			"$lte": &searchInv.MaxTime,
+			"$gte": &startTime,
 		},
 	})
 	if err != nil {
@@ -515,6 +520,51 @@ func GetAvgCountOfProductsOverTime(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func TotalWeightSoldPerFruit() {
+func TotalWeightSoldPerFruit(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
+	Db, err := connectDB.ConfirmDbExists()
+	if err != nil {
+		err = errors.Wrap(err, "Mongo client unable to connect")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	searchInv := &InvSearch{}
+	err = json.Unmarshal(body, searchInv)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	startTime := searchInv.MaxTime - 3600
+
+	//here we need to send one hour, weekly, monthly
+
+	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+
+		"timestamp": map[string]*int64{
+			"$lte": &searchInv.MaxTime,
+			"$gte": &startTime,
+		},
+	})
+	if err != nil {
+		err = errors.Wrap(err, "Error while fetching product.")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	resultCount := strconv.Itoa(len(findResults))
+	w.Write([]byte(resultCount))
+	w.WriteHeader(http.StatusOK)
 }
