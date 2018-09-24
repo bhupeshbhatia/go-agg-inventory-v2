@@ -31,6 +31,7 @@ func setAuthenticationRoute(router *mux.Router) *mux.Router {
 	router.HandleFunc("/search-range", service.SearchInRange).Methods("POST")
 	router.HandleFunc("/get-inv", service.GetDataFromCollection).Methods("GET")
 	router.HandleFunc("/load-data", service.BatchInsertData).Methods("GET")
+	router.HandleFunc("/get-count", service.GetCountOfProductsToday).Methods("POST")
 
 	// router.Handle("/fileaccess",
 	// 	negroni.New(

@@ -41,7 +41,7 @@ type marshalInventory struct {
 	// AggregateID      int64  `bson:"aggregate_id,omitempty" json:"aggregate_id,omitempty"`
 	// DateSold         string  `bson:"date_sold,omitempty" json:"date_sold,omitempty"`
 	// SalePrice        float64   `bson:"sale_price,omitempty" json:"sale_price,omitempty"`
-	// OriginalWeight float64 `bson:"original_weight,omitempty" json:"original_weight,omitempty"`
+	// SoldWeight float64 `bson:"sold_weight,omitempty" json:"sold_weight,omitempty"`
 	Timestamp string `bson:"timestamp,omitempty" json:"timestamp,omitempty"`
 }
 
