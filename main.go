@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/service"
 	"github.com/gorilla/mux"
@@ -61,12 +60,12 @@ func main() {
 		log.Println(err)
 	}
 
-	// service.TestIfDataGenerated()
+	service.GetProductCount()
 
 	router := initRoutes()
 	n := negroni.Classic()
 	n.UseHandler(router)
-	http.ListenAndServe(":8080", n)
+	// http.ListenAndServe(":8080", n)
 }
 
 //----------------------------------------------------------

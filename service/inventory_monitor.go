@@ -21,6 +21,11 @@ type InvSearch struct {
 	TimePeriodInDays int   `json:"time_period"`
 }
 
+type InvDashboard struct {
+	ProdWeight  float64 `json:"prod_weight"`
+	TotalWeight float64 `json:"total_weight"`
+}
+
 func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 
 	// file := strings.NewReader(mockdata.Testing())
@@ -350,6 +355,68 @@ func SearchInTimeRange(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write(marshalInventory)
 	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
+
+	Db, err := connectDB.ConfirmDbExists()
+	if err != nil {
+		err = errors.Wrap(err, "Mongo client unable to connect")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	timeSearch := time.Now().Unix()
+
+	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+
+		"timestamp": map[string]*int64{
+			"$lt": &timeSearch,
+		},
+	})
+	if err != nil {
+		err = errors.Wrap(err, "Error while fetching product.")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	inventory := []model.Inventory{}
+	// 		inventory = append(inventory, GenerateDataForInv())
+	// }
+
+	var marshalInventory []byte
+	for _, v := range findResults {
+		marshalInventory, err = json.Marshal(v)
+		if err != nil {
+			err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	err = json.Unmarshal(marshalInventory, inventory)
+
+	var productsName = []string{"Banana", "Orange", "Apple", "Mango", "Strawberry", "Tomato", "Lettuce", "Pear", "Grapes", "Sweet Pepper"}
+
+	var prodWeight, totalWeight float64
+	for i, v := range productsName {
+		prodWeight, totalWeight = GetProdAndTotalWeight(v, inventory[i])
+	}
+
+	dashMarshal, err := json.Marshal(InvDashboard{
+		ProdWeight:  prodWeight,
+		TotalWeight: totalWeight,
+	})
+	if err != nil {
+		err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Write(dashMarshal)
 	w.WriteHeader(http.StatusOK)
 }
 
