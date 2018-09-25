@@ -25,13 +25,13 @@ func initRoutes() *mux.Router {
 }
 
 func setAuthenticationRoute(router *mux.Router) *mux.Router {
-	router.HandleFunc("/add-product", service.AddProductHandler).Methods("POST")
-	router.HandleFunc("/update-product", service.UpdateProductHandler).Methods("POST")
-	router.HandleFunc("/delete-product", service.DeleteProductHandler).Methods("POST")
-	router.HandleFunc("/search-range", service.SearchInRange).Methods("POST")
-	router.HandleFunc("/get-inv", service.GetDataFromCollection).Methods("GET")
-	router.HandleFunc("/load-data", service.BatchInsertData).Methods("GET")
-	// router.HandleFunc("/get-count", service.GetCountOfProductsToday).Methods("POST")
+	router.HandleFunc("/add-product", service.AddInventory).Methods("POST")
+	router.HandleFunc("/update-product", service.UpdateInventory).Methods("POST")
+	router.HandleFunc("/delete-product", service.DeleteInventory).Methods("POST")
+	router.HandleFunc("/search-range", service.SearchInTimeRange).Methods("POST")
+	router.HandleFunc("/get-inv", service.GetInvFromMongo).Methods("GET")
+	router.HandleFunc("/load-data", service.LoadDataInMongo).Methods("GET")
+	// router.HandleFunc("/get-count", service.GetInvForToday).Methods("POST")
 
 	// router.Handle("/fileaccess",
 	// 	negroni.New(
@@ -61,7 +61,7 @@ func main() {
 		log.Println(err)
 	}
 
-	service.GetDataFromFile()
+	service.TestIfDataGenerated()
 
 	router := initRoutes()
 	n := negroni.Classic()

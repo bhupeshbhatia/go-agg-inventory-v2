@@ -11,8 +11,6 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/mongo/findopt"
 
-	"github.com/bhupeshbhatia/go-agg-inventory-v2/mockdata"
-
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/connectDB"
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
 	"github.com/pkg/errors"
@@ -23,7 +21,7 @@ type InvSearch struct {
 	TimePeriodInDays int   `json:"time_period"`
 }
 
-func BatchInsertData(w http.ResponseWriter, r *http.Request) {
+func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 
 	// file := strings.NewReader(mockdata.Testing())
 	// var inv []model.Inventory
@@ -35,43 +33,53 @@ func BatchInsertData(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	// DB connection
-	Db, err := connectDB.ConfirmDbExists()
-	if err != nil {
-		err = errors.Wrap(err, "Mongo client unable to connect")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	// Db, err := connectDB.ConfirmDbExists()
+	// if err != nil {
+	// 	err = errors.Wrap(err, "Mongo client unable to connect")
+	// 	log.Println(err)
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	return
+	// }
 
-	invBody := []byte(mockdata.StartUpLoadData())
-
-	//Convert body of type []byte into type []model.Inventory{}
 	inventory := []model.Inventory{}
-	err = json.Unmarshal(invBody, &inventory)
+	for i := 0; i < 100; i++ {
+		inventory = append(inventory, GenerateDataForInv())
+	}
+
+	// invBody := []byte(mockdata.StartUpLoadData())
+
+	// //Convert body of type []byte into type []model.Inventory{}
+	// inventory := []model.Inventory{}
+	// err = json.Unmarshal(invBody, &inventory)
+	// if err != nil {
+	// 	err = errors.Wrap(err, "Unable to unmarshal product into Inventory struct")
+	// 	log.Println(err)
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// for _, val := range inventory {
+	// 	log.Println(val.ItemID)
+	// 	insertResult, err := Db.Collection.InsertOne(val)
+	// 	if err != nil {
+	// 		err = errors.Wrap(err, "Unable to insert event")
+	// 		log.Println(err)
+	// 		w.WriteHeader(http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	log.Println(insertResult)
+
+	// }
+
+	jsonWithInvData, err := json.Marshal(&inventory)
 	if err != nil {
-		err = errors.Wrap(err, "Unable to unmarshal product into Inventory struct")
 		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
-
-	for _, val := range inventory {
-		log.Println(val.ItemID)
-		insertResult, err := Db.Collection.InsertOne(val)
-		if err != nil {
-			err = errors.Wrap(err, "Unable to insert event")
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		log.Println(insertResult)
-
-	}
-
+	w.Write(jsonWithInvData)
 	w.WriteHeader(http.StatusOK)
 }
 
-func GetDataFromCollection(w http.ResponseWriter, r *http.Request) {
+func GetInvFromMongo(w http.ResponseWriter, r *http.Request) {
 	//Mongo collection
 	Db, err := connectDB.ConfirmDbExists()
 	if err != nil {
@@ -117,7 +125,7 @@ func GetDataFromCollection(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func AddProductHandler(w http.ResponseWriter, r *http.Request) {
+func AddInventory(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -134,6 +142,8 @@ func AddProductHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	log.Println(string(body))
 
 	//Convert body of type []byte into type []model.Inventory{}
 	inventory := []model.Inventory{}
@@ -163,7 +173,7 @@ func AddProductHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func UpdateProductHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -232,7 +242,7 @@ func UpdateProductHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func DeleteProductHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteInventory(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -283,7 +293,7 @@ func DeleteProductHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func SearchInRange(w http.ResponseWriter, r *http.Request) {
+func SearchInTimeRange(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -344,7 +354,7 @@ func SearchInRange(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func GetCountOfProducts(w http.ResponseWriter, r *http.Request) {
+func GetInvForToday(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -427,7 +437,7 @@ func GetCountOfProducts(w http.ResponseWriter, r *http.Request) {
 	// }
 }
 
-func GetCountOfTotalInventory(w http.ResponseWriter, r *http.Request) {
+func TotalInventory(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -471,7 +481,7 @@ func GetCountOfTotalInventory(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func GetAvgCountOfProductsPerHour(w http.ResponseWriter, r *http.Request) {
+func AvgInventoryPerHour(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
