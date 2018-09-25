@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/service"
 	"github.com/gorilla/mux"
@@ -27,7 +28,7 @@ func setAuthenticationRoute(router *mux.Router) *mux.Router {
 	router.HandleFunc("/add-product", service.AddInventory).Methods("POST")
 	router.HandleFunc("/update-product", service.UpdateInventory).Methods("POST")
 	router.HandleFunc("/delete-product", service.DeleteInventory).Methods("POST")
-	router.HandleFunc("/search-range", service.SearchInTimeRange).Methods("POST")
+	// router.HandleFunc("/search-range", service.SearchInTimeRange).Methods("POST")
 	router.HandleFunc("/get-inv", service.GetInvFromMongo).Methods("GET")
 	router.HandleFunc("/load-data", service.LoadDataInMongo).Methods("GET")
 	// router.HandleFunc("/get-count", service.GetInvForToday).Methods("POST")
@@ -60,12 +61,12 @@ func main() {
 		log.Println(err)
 	}
 
-	service.GetProductCount()
+	// service.GetProductCount()
 
 	router := initRoutes()
 	n := negroni.Classic()
 	n.UseHandler(router)
-	// http.ListenAndServe(":8080", n)
+	http.ListenAndServe(":8080", n)
 }
 
 //----------------------------------------------------------

@@ -93,44 +93,43 @@ func TestIfDataGenerated() {
 	log.Println(jsonWithInvData)
 }
 
-func GetProdAndTotalWeight(prodName string, inventory model.Inventory) (float64, float64) {
-	// productWeight := 0
-	// totalWeight := 0
-	var productWeight, totalWeight float64
-	// inventory := []model.Inventory{}
-	// for i := 0; i < 100; i++ {
-	// 	inventory = append(inventory, GenerateDataForInv())
-	// }
+// func GetProdAndTotalWeight(prodName string, inventory model.Inventory) (float64, float64) {
+// 	// productWeight := 0
+// 	// totalWeight := 0
+// 	var productWeight, totalWeight float64
+// 	// inventory := []model.Inventory{}
+// 	// for i := 0; i < 100; i++ {
+// 	// 	inventory = append(inventory, GenerateDataForInv())
+// 	// }
 
-	// var twApple, twBanana, twOrange, twMango, twStrawberry, twLettuce, twPear, twGrapes, twSweetPepper float64
+// 	// var twApple, twBanana, twOrange, twMango, twStrawberry, twLettuce, twPear, twGrapes, twSweetPepper float64
 
-	for _, v := range inventory {
-		// switch v.Name {
-		// case "Apple":
-		// 	twApple = v.TotalWeight + twApple
-		// case "Banana":
-		// 	twBanana = v.TotalWeight + twBanana
-		// case "Mango":
-		// 	twMango = v.TotalWeight + twMango
-		// case "Strawberry":
-		// 	twStrawberry = v.TotalWeight + twStrawberry
-		// case "Lettuce":
-		// 	twLettuce = v.TotalWeight + twLettuce
-		// case "Pear":
-		// 	twPear = v.TotalWeight + twPear
-		// case "Grapes":
-		// 	twGrapes = v.TotalWeight + twGrapes
-		// case "Sweet Pepper":
-		// 	twSweetPepper = v.TotalWeight + twSweetPepper
-		// }
-		switch v.Name {
-		case prodName:
-			productWeight = v.TotalWeight + productWeight
-		}
-		totalWeight = v.TotalWeight + totalWeight
-	}
-	return productWeight, totalWeight
-}
+// 		switch v.Name {
+// 		case prodName:
+// 			productWeight = v.TotalWeight + productWeight
+// 		}
+// 		totalWeight = v.TotalWeight + totalWeight
+// 	return productWeight, totalWeight
+// }
+
+// switch v.Name {
+// case "Apple":
+// 	twApple = v.TotalWeight + twApple
+// case "Banana":
+// 	twBanana = v.TotalWeight + twBanana
+// case "Mango":
+// 	twMango = v.TotalWeight + twMango
+// case "Strawberry":
+// 	twStrawberry = v.TotalWeight + twStrawberry
+// case "Lettuce":
+// 	twLettuce = v.TotalWeight + twLettuce
+// case "Pear":
+// 	twPear = v.TotalWeight + twPear
+// case "Grapes":
+// 	twGrapes = v.TotalWeight + twGrapes
+// case "Sweet Pepper":
+// 	twSweetPepper = v.TotalWeight + twSweetPepper
+// }
 
 // func GetDataFromFile() {
 // 	data, err := ioutil.ReadFile("mockdata/MOCK_DATA.json")
