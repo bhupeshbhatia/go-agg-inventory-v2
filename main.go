@@ -61,7 +61,7 @@ func main() {
 		log.Println(err)
 	}
 
-	service.TestIfDataGenerated()
+	// service.TestIfDataGenerated()
 
 	router := initRoutes()
 	n := negroni.Classic()

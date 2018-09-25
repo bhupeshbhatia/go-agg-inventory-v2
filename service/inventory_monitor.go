@@ -33,13 +33,13 @@ func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	// DB connection
-	// Db, err := connectDB.ConfirmDbExists()
-	// if err != nil {
-	// 	err = errors.Wrap(err, "Mongo client unable to connect")
-	// 	log.Println(err)
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
+	Db, err := connectDB.ConfirmDbExists()
+	if err != nil {
+		err = errors.Wrap(err, "Mongo client unable to connect")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	inventory := []model.Inventory{}
 	for i := 0; i < 100; i++ {
@@ -58,18 +58,17 @@ func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 	// 	return
 	// }
 
-	// for _, val := range inventory {
-	// 	log.Println(val.ItemID)
-	// 	insertResult, err := Db.Collection.InsertOne(val)
-	// 	if err != nil {
-	// 		err = errors.Wrap(err, "Unable to insert event")
-	// 		log.Println(err)
-	// 		w.WriteHeader(http.StatusInternalServerError)
-	// 		return
-	// 	}
-	// 	log.Println(insertResult)
-
-	// }
+	for _, val := range inventory {
+		log.Println(val.ItemID)
+		insertResult, err := Db.Collection.InsertOne(val)
+		if err != nil {
+			err = errors.Wrap(err, "Unable to insert event")
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		log.Println(insertResult)
+	}
 
 	jsonWithInvData, err := json.Marshal(&inventory)
 	if err != nil {
