@@ -6,41 +6,31 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/connectDB"
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
-	"github.com/mongodb/mongo-go-driver/mongo/findopt"
+	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 )
 
 type InvSearch struct {
-	MaxTime          int64 `json:"max_time"`
-	TimePeriodInDays int64 `json:"time_in_days"`
-	TimeInHours      int64 `json:"time_in_hours"`
+	MaxTime          int64 `bson:"max_time,omitempty" json:"max_time,omitempty"`
+	TimePeriodInDays int64 `bson:"time_days,omitempty" json:"time_days,omitempty"`
+	TimeInHours      int64 `bson:"time_hours,omitempty json:"time_hours,omitempty"`
 }
 
 type InvDashboard struct {
-	ProdWeight   float64 `json:"prod_weight"`
-	TotalWeight  float64 `json:"total_weight"`
-	SoldWeight   float64 `json:"sold_weight"`
-	WasteWeight  float64 `json:"waste_weight"`
-	ProductSold  int64   `json:"product_sold"`
-	DonateWeight float64 `json:"donate_product"`
+	ProdName     string  `bson:"prod_name,omitempty" json:"prod_name,omitempty"`
+	ProdWeight   float64 `bson:"prod_weight,omitempty" json:"prod_weight,omitempty"`
+	TotalWeight  float64 `bson:"prod_weight,omitempty" json:"total_weight,omitempty"`
+	SoldWeight   float64 `bson:"prod_weight,omitempty" json:"sold_weight,omitempty"`
+	WasteWeight  float64 `bson:"prod_weight,omitempty" json:"waste_weight,omitempty"`
+	ProductSold  int64   `bson:"prod_weight,omitempty" json:"product_sold,omitempty"`
+	DonateWeight float64 `bson:"prod_weight,omitempty" json:"donate_product,omitempty"`
 }
 
 func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
-
-	// file := strings.NewReader(mockdata.Testing())
-	// var inv []model.Inventory
-	// if err := json.NewDecoder(file).Decode(&inv); err != nil {
-	// 	err = errors.Wrap(err, "Unable to load data")
-	// 	log.Println(err)
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
-
 	// DB connection
 	Db, err := connectDB.ConfirmDbExists()
 	if err != nil {
@@ -54,18 +44,6 @@ func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < 100; i++ {
 		inventory = append(inventory, GenerateDataForInv())
 	}
-
-	// invBody := []byte(mockdata.StartUpLoadData())
-
-	// //Convert body of type []byte into type []model.Inventory{}
-	// inventory := []model.Inventory{}
-	// err = json.Unmarshal(invBody, &inventory)
-	// if err != nil {
-	// 	err = errors.Wrap(err, "Unable to unmarshal product into Inventory struct")
-	// 	log.Println(err)
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
 
 	for _, val := range inventory {
 		log.Println(val.ItemID)
@@ -86,49 +64,28 @@ func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func GetInvFromMongo(w http.ResponseWriter, r *http.Request) {
-	//Mongo collection
-	Db, err := connectDB.ConfirmDbExists()
+func LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		err = errors.Wrap(err, "Mongo client unable to connect")
+		err = errors.Wrap(err, "Unable to read the request body")
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	timestamp := time.Now().Unix()
-	log.Println(timestamp)
+	inventory := SearchByDays(body) //Just need max time
 
-	//find results
-	findResults, err := Db.Collection.FindMap(map[string]interface{}{
-
-		"timestamp": map[string]int64{
-			"$lt": timestamp,
-		},
-	},
-		findopt.Limit(100),
-	)
-	if err != nil {
-		err = errors.Wrap(err, "Error while fetching product.")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	log.Println(findResults)
-
-	var marshalInventory []byte
-	for _, v := range findResults {
-		marshalInventory, err = json.Marshal(v)
+	if len(*inventory) > 0 {
+		invJSON, err := json.Marshal(inventory)
 		if err != nil {
 			err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Write(marshalInventory)
+		w.Write(invJSON)
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusInternalServerError)
 
 }
 
@@ -310,60 +267,35 @@ func SearchTimeRange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Db, err := connectDB.ConfirmDbExists()
-	if err != nil {
-		err = errors.Wrap(err, "Mongo client unable to connect")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	inventory := SearchByDays(body) //Just need max time
 
-	searchInv := &InvSearch{}
-	err = json.Unmarshal(body, searchInv)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	endTime := time.Unix(searchInv.MaxTime, 0)
-	startTime := endTime.AddDate(0, 0, -(int(searchInv.TimePeriodInDays))).Unix()
-
-	findResults, err := Db.Collection.FindMap(map[string]interface{}{
-
-		"timestamp": map[string]*int64{
-			"$lt": &searchInv.MaxTime,
-			"$gt": &startTime,
-		},
-	},
-		findopt.Limit(100),
-	)
-	if err != nil {
-		err = errors.Wrap(err, "Error while fetching product.")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	log.Println(findResults)
-
-	var marshalInventory []byte
-	for _, v := range findResults {
-		marshalInventory, err = json.Marshal(v)
+	if len(*inventory) > 0 {
+		invJSON, err := json.Marshal(inventory)
 		if err != nil {
 			err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Write(marshalInventory)
+		w.Write(invJSON)
 	}
-	w.WriteHeader(http.StatusOK)
+
+	// var marshalInventory []byte
+	// for _, v := range findResults {
+	// 	marshalInventory, err = json.Marshal(v)
+	// 	if err != nil {
+	// 		err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
+	// 		log.Println(err)
+	// 		w.WriteHeader(http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	w.Write(marshalInventory)
+	// }
+	// w.WriteHeader(http.StatusOK)
 }
 
 //find results for timestamp field within a specified time range
-func SearchByDays(req []byte) []model.Inventory {
+func SearchByDays(req []byte) *[]model.Inventory {
 	Db, err := connectDB.ConfirmDbExists()
 	if err != nil {
 		err = errors.Wrap(err, "Mongo client unable to connect")
@@ -371,67 +303,57 @@ func SearchByDays(req []byte) []model.Inventory {
 		return nil
 	}
 
-	searchInv := &InvSearch{}
+	searchInv := []InvSearch{}
 	var findResults []interface{}
-	err = json.Unmarshal(req, searchInv)
+	err = json.Unmarshal(req, &searchInv)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
 		log.Println(err)
 		return nil
 	}
 
-	if searchInv.TimePeriodInDays != 0 {
-		endTime := time.Unix(searchInv.MaxTime, 0)
-		startTime := endTime.AddDate(0, 0, -(int(searchInv.TimePeriodInDays))).Unix()
+	for _, searchVal := range searchInv {
+		if searchVal.TimePeriodInDays != 0 {
+			endTime := time.Unix(searchVal.MaxTime, 0)
+			startTime := endTime.AddDate(0, 0, -(int(searchVal.TimePeriodInDays))).Unix()
 
-		findResults, err = Db.Collection.FindMap(map[string]interface{}{
+			findResults, err = Db.Collection.FindMap(map[string]interface{}{
 
-			"timestamp": map[string]*int64{
-				"$lt": &searchInv.MaxTime,
-				"$gt": &startTime,
-			},
-		})
-	} else {
-		findResults, err = Db.Collection.FindMap(map[string]interface{}{
+				"timestamp": map[string]*int64{
+					"$lt": &searchVal.MaxTime,
+					"$gt": &startTime,
+				},
+			})
+		} else {
+			findResults, err = Db.Collection.FindMap(map[string]interface{}{
 
-			"timestamp": map[string]*int64{
-				"$lt": &searchInv.MaxTime,
-			},
-		})
-	}
-	if err != nil {
-		err = errors.Wrap(err, "Error while fetching product.")
-		log.Println(err)
-		return nil
-	}
-
-	inventory := []model.Inventory{}
-
-	var marshalInventory []byte
-	for _, v := range findResults {
-		marshalInventory, err = json.Marshal(v)
+				"timestamp": map[string]*int64{
+					"$lt": &searchVal.MaxTime,
+				},
+			})
+		}
 		if err != nil {
-			err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
+			err = errors.Wrap(err, "Error while fetching product.")
 			log.Println(err)
 			return nil
 		}
 	}
 
-	err = json.Unmarshal(marshalInventory, inventory)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
-		log.Println(err)
-		return nil
+	inventory := []model.Inventory{}
+
+	for _, v := range findResults {
+		resultInv := v.(*model.Inventory)
+		inventory = append(inventory, *resultInv)
 	}
 
-	return inventory
+	return &inventory
 
 	// log.Println(len(findResults))
 	// return findResults
 }
 
 //find results for timestamp field within a specified time range
-func SearchByHours(req []byte) []model.Inventory {
+func SearchByHours(req []byte) *[]model.Inventory {
 	Db, err := connectDB.ConfirmDbExists()
 	if err != nil {
 		err = errors.Wrap(err, "Mongo client unable to connect")
@@ -439,59 +361,44 @@ func SearchByHours(req []byte) []model.Inventory {
 		return nil
 	}
 
-	searchInv := &InvSearch{}
+	searchInv := []InvSearch{}
 	var findResults []interface{}
-	err = json.Unmarshal(req, searchInv)
+	err = json.Unmarshal(req, &searchInv)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
 		log.Println(err)
 		return nil
 	}
+	for _, searchVal := range searchInv {
+		if searchVal.TimeInHours != 0 {
+			startTime := searchVal.MaxTime - 3600
 
-	if searchInv.TimeInHours != 0 {
-		startTime := searchInv.MaxTime - 3600
+			findResults, err = Db.Collection.FindMap(map[string]interface{}{
 
-		findResults, err = Db.Collection.FindMap(map[string]interface{}{
-
-			"timestamp": map[string]*int64{
-				"$lt": &searchInv.MaxTime,
-				"$gt": &startTime,
-			},
-		})
-	}
-	if err != nil {
-		err = errors.Wrap(err, "Error while fetching product.")
-		log.Println(err)
-		return nil
-	}
-
-	inventory := []model.Inventory{}
-
-	var marshalInventory []byte
-	for _, v := range findResults {
-		marshalInventory, err = json.Marshal(v)
+				"timestamp": map[string]*int64{
+					"$lt": &searchVal.MaxTime,
+					"$gt": &startTime,
+				},
+			})
+		}
 		if err != nil {
-			err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
+			err = errors.Wrap(err, "Error while fetching product.")
 			log.Println(err)
 			return nil
 		}
 	}
 
-	err = json.Unmarshal(marshalInventory, inventory)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
-		log.Println(err)
-		return nil
+	inventory := []model.Inventory{}
+
+	for _, v := range findResults {
+		resultInv := v.(*model.Inventory)
+		inventory = append(inventory, *resultInv)
 	}
 
-	return inventory
+	return &inventory
 
 	// log.Println(len(findResults))
 	// return findResults
-}
-
-func DashboardInvData() {
-
 }
 
 func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
@@ -518,7 +425,7 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, v := range inventory {
+	for _, v := range *inventory {
 		totalWeight = v.TotalWeight + totalWeight
 		soldWeight = v.SoldWeight + soldWeight
 		wasteWeight = v.WasteWeight + wasteWeight
@@ -552,6 +459,10 @@ func TotalProductSoldGraph(w http.ResponseWriter, r *http.Request) {
 
 	inventory := SearchByHours(body) //Just need max time
 
+	// if len(*inventory) > 0 {
+
+	// }
+
 	if inventory == nil {
 		log.Println(errors.New("Unable to get anything back from SearchWithTime function"))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -560,7 +471,7 @@ func TotalProductSoldGraph(w http.ResponseWriter, r *http.Request) {
 
 	var soldWeight float64
 
-	for _, v := range inventory {
+	for _, v := range *inventory {
 		soldWeight = v.SoldWeight + soldWeight
 	}
 
@@ -577,8 +488,67 @@ func TotalProductSoldGraph(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// type bla struct {
+// 	ID string `bson:"_id", json:"_id"`,
+// 	Total float32 `bson:"total", json:"total"`
+// }
+
 //Need end time
-// func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
+func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
+	Db, err := connectDB.ConfirmDbExists()
+	if err != nil {
+		err = errors.Wrap(err, "Mongo client unable to connect")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	pipeline := bson.NewArray(
+		bson.VC.Document(
+			bson.NewDocument(
+				bson.EC.SubDocumentFromElements(
+					"$group",
+					bson.EC.String("_id", "$name"),
+					bson.EC.SubDocumentFromElements(
+						"total",
+						bson.EC.String("$sum", "$total_weight"),
+					),
+				),
+			),
+		),
+	)
+	aggResults, err := Db.Collection.Aggregate(pipeline)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	// log.Println(aggResults)
+
+	dist := []InvDashboard{}
+
+	for _, v := range aggResults {
+		value := v.(map[string]interface{})
+		strValue := value["_id"].(string)
+		secValue := value["total"].(float64)
+		dist = append(dist, InvDashboard{
+			ProdName:   strValue,
+			ProdWeight: secValue,
+		})
+	}
+
+	DistWeightByte, err := json.Marshal(&dist)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to marshal distribution")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(DistWeightByte)
+	w.WriteHeader(http.StatusOK)
+}
+
+//need end and start time (start period has to be in number of days)
+// func GetInvForToday(w http.ResponseWriter, r *http.Request) {
 // 	body, err := ioutil.ReadAll(r.Body)
 // 	if err != nil {
 // 		err = errors.Wrap(err, "Unable to read the request body")
@@ -586,8 +556,6 @@ func TotalProductSoldGraph(w http.ResponseWriter, r *http.Request) {
 // 		w.WriteHeader(http.StatusInternalServerError)
 // 		return
 // 	}
-
-// 	// var productsName = []string{"Banana", "Orange", "Apple", "Mango", "Strawberry", "Tomato", "Lettuce", "Pear", "Grapes", "Sweet Pepper"}
 
 // 	Db, err := connectDB.ConfirmDbExists()
 // 	if err != nil {
@@ -597,13 +565,59 @@ func TotalProductSoldGraph(w http.ResponseWriter, r *http.Request) {
 // 		return
 // 	}
 
-// 	// inventory := []model.Inventory{}
+// 	searchInv := &InvSearch{}
+// 	err = json.Unmarshal(body, searchInv)
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+// 		log.Println(err)
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	endTime := time.Unix(searchInv.MaxTime, 0)
+// 	startTime := endTime.AddDate(0, 0, -(int(searchInv.TimePeriodInDays))).Unix()
+
+// 	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+
+// 		"timestamp": map[string]*int64{
+// 			"$lt": &searchInv.MaxTime,
+// 			"$gt": &startTime,
+// 		},
+// 	})
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Error while fetching product.")
+// 		log.Println(err)
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	log.Println(len(findResults))
+// 	resultCount := strconv.Itoa(len(findResults))
+// 	w.Write([]byte(resultCount))
+// 	w.WriteHeader(http.StatusOK)
 
 // 	// pipeline := bson.NewArray(
 // 	// 	bson.VC.DocumentFromElements(
 // 	// 		bson.EC.SubDocumentFromElements(
+// 	// 			"$match",
+// 	// 			bson.EC.SubDocumentFromElements(
+// 	// 				"timestamp",
+// 	// 				bson.EC.Int64("$gte", startTime),
+// 	// 				bson.EC.Int64("$lte", searchInv.MaxTime),
+// 	// 			),
+// 	// 		),
+// 	// 	),
+// 	// 	bson.VC.DocumentFromElements(
+// 	// 		bson.EC.SubDocumentFromElements(
 // 	// 			"$group",
-// 	// 			bson.EC.SubDocumentFromElements("_id", "$name"),
+// 	// 			bson.EC.SubDocumentFromElements(
+// 	// 				"_id",
+// 	// 				bson.EC.String("_id", nil),
+// 	// 			),
+// 	// 			bson.EC.SubDocumentFromElements(
+// 	// 				"count",
+// 	// 				bson.EC.count("count", 1),
+// 	// 			),
 // 	// 		),
 // 	// 	),
 // 	// )
@@ -612,236 +626,58 @@ func TotalProductSoldGraph(w http.ResponseWriter, r *http.Request) {
 // 	// 	log.Fatalln(err)
 // 	// }
 // 	// log.Println(len(aggResults))
-
-// 	// findResults := SearchWithinTime(body) //Just need max time
-
-// 	// inventory := []model.Inventory{}
-
-// 	// var marshalInventory []byte
-// 	// for _, v := range findResults {
-// 	// 	marshalInventory, err = json.Marshal(v)
-// 	// 	if err != nil {
-// 	// 		err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
-// 	// 		log.Println(err)
-// 	// 		w.WriteHeader(http.StatusInternalServerError)
-// 	// 		return
-// 	// 	}
+// 	// for _, r := range aggResults {
+// 	// 	// log.Println(r.(*item))
 // 	// }
-
-// 	// err = json.Unmarshal(marshalInventory, inventory)
-// 	// if err != nil {
-// 	// 	err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
-// 	// 	log.Println(err)
-// 	// 	w.WriteHeader(http.StatusInternalServerError)
-// 	// 	return
-// 	// }
-
-// 	// var prodWeight []float64
-
-// 	// inventoryMap := make(map[string]model.Inventory, len(inventory))
-// 	// for i, v := range inventory {
-// 	// 	inventoryMap[inventory[i].Name] = v
-// 	// }
-
-// 	// for i, v := range productsName {
-// 	// 	// prodWeight, totalWeight = GetProdAndTotalWeight(v, inventory[i])
-
-// 	// }
-
-// 	// dashMarshal, err := json.Marshal(InvDashboard{
-// 	// 	ProdWeight:  prodWeight,
-// 	// 	TotalWeight: totalWeight,
-// 	// })
-// 	// if err != nil {
-// 	// 	err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
-// 	// 	log.Println(err)
-// 	// 	w.WriteHeader(http.StatusInternalServerError)
-// 	// 	return
-// 	// }
-// 	// w.Write(dashMarshal)
-// 	// w.WriteHeader(http.StatusOK)
 // }
 
-//need end and start time (start period has to be in number of days)
-func GetInvForToday(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to read the request body")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+// //need end time
+// func TotalInventory(w http.ResponseWriter, r *http.Request) {
+// 	body, err := ioutil.ReadAll(r.Body)
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Unable to read the request body")
+// 		log.Println(err)
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
 
-	Db, err := connectDB.ConfirmDbExists()
-	if err != nil {
-		err = errors.Wrap(err, "Mongo client unable to connect")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+// 	Db, err := connectDB.ConfirmDbExists()
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Mongo client unable to connect")
+// 		log.Println(err)
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
 
-	searchInv := &InvSearch{}
-	err = json.Unmarshal(body, searchInv)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+// 	searchInv := &InvSearch{}
+// 	err = json.Unmarshal(body, searchInv)
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+// 		log.Println(err)
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
 
-	endTime := time.Unix(searchInv.MaxTime, 0)
-	startTime := endTime.AddDate(0, 0, -(int(searchInv.TimePeriodInDays))).Unix()
+// 	findResults, err := Db.Collection.FindMap(map[string]interface{}{
 
-	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+// 		"timestamp": map[string]*int64{
+// 			"$lt": &searchInv.MaxTime,
+// 		},
+// 	})
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Error while fetching product.")
+// 		log.Println(err)
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
 
-		"timestamp": map[string]*int64{
-			"$lt": &searchInv.MaxTime,
-			"$gt": &startTime,
-		},
-	})
-	if err != nil {
-		err = errors.Wrap(err, "Error while fetching product.")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+// 	resultCount := strconv.Itoa(len(findResults))
+// 	w.Write([]byte(resultCount))
+// 	w.WriteHeader(http.StatusOK)
+// }
 
-	log.Println(len(findResults))
-	resultCount := strconv.Itoa(len(findResults))
-	w.Write([]byte(resultCount))
-	w.WriteHeader(http.StatusOK)
-
-	// pipeline := bson.NewArray(
-	// 	bson.VC.DocumentFromElements(
-	// 		bson.EC.SubDocumentFromElements(
-	// 			"$match",
-	// 			bson.EC.SubDocumentFromElements(
-	// 				"timestamp",
-	// 				bson.EC.Int64("$gte", startTime),
-	// 				bson.EC.Int64("$lte", searchInv.MaxTime),
-	// 			),
-	// 		),
-	// 	),
-	// 	bson.VC.DocumentFromElements(
-	// 		bson.EC.SubDocumentFromElements(
-	// 			"$group",
-	// 			bson.EC.SubDocumentFromElements(
-	// 				"_id",
-	// 				bson.EC.String("_id", nil),
-	// 			),
-	// 			bson.EC.SubDocumentFromElements(
-	// 				"count",
-	// 				bson.EC.count("count", 1),
-	// 			),
-	// 		),
-	// 	),
-	// )
-	// aggResults, err := Db.Collection.Aggregate(pipeline)
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// log.Println(len(aggResults))
-	// for _, r := range aggResults {
-	// 	// log.Println(r.(*item))
-	// }
-}
-
-//need end time
-func TotalInventory(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to read the request body")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	Db, err := connectDB.ConfirmDbExists()
-	if err != nil {
-		err = errors.Wrap(err, "Mongo client unable to connect")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	searchInv := &InvSearch{}
-	err = json.Unmarshal(body, searchInv)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	findResults, err := Db.Collection.FindMap(map[string]interface{}{
-
-		"timestamp": map[string]*int64{
-			"$lt": &searchInv.MaxTime,
-		},
-	})
-	if err != nil {
-		err = errors.Wrap(err, "Error while fetching product.")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	resultCount := strconv.Itoa(len(findResults))
-	w.Write([]byte(resultCount))
-	w.WriteHeader(http.StatusOK)
-}
-
-//need to think about how to show it in per hour - require start and end time
-func AvgInventoryPerHour(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to read the request body")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	Db, err := connectDB.ConfirmDbExists()
-	if err != nil {
-		err = errors.Wrap(err, "Mongo client unable to connect")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	searchInv := &InvSearch{}
-	err = json.Unmarshal(body, searchInv)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	startTime := searchInv.MaxTime - 3600
-
-	//here we need to send one hour, weekly, monthly
-
-	findResults, err := Db.Collection.FindMap(map[string]interface{}{
-
-		"timestamp": map[string]*int64{
-			"$lte": &searchInv.MaxTime,
-			"$gte": &startTime,
-		},
-	})
-	if err != nil {
-		err = errors.Wrap(err, "Error while fetching product.")
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	resultCount := strconv.Itoa(len(findResults))
-	w.Write([]byte(resultCount))
-	w.WriteHeader(http.StatusOK)
-}
-
-// func TotalWeightSoldPerFruit(w http.ResponseWriter, r *http.Request) {
+// //need to think about how to show it in per hour - require start and end time
+// func AvgInventoryPerHour(w http.ResponseWriter, r *http.Request) {
 // 	body, err := ioutil.ReadAll(r.Body)
 // 	if err != nil {
 // 		err = errors.Wrap(err, "Unable to read the request body")
@@ -889,3 +725,51 @@ func AvgInventoryPerHour(w http.ResponseWriter, r *http.Request) {
 // 	w.Write([]byte(resultCount))
 // 	w.WriteHeader(http.StatusOK)
 // }
+
+// // func TotalWeightSoldPerFruit(w http.ResponseWriter, r *http.Request) {
+// // 	body, err := ioutil.ReadAll(r.Body)
+// // 	if err != nil {
+// // 		err = errors.Wrap(err, "Unable to read the request body")
+// // 		log.Println(err)
+// // 		w.WriteHeader(http.StatusInternalServerError)
+// // 		return
+// // 	}
+
+// // 	Db, err := connectDB.ConfirmDbExists()
+// // 	if err != nil {
+// // 		err = errors.Wrap(err, "Mongo client unable to connect")
+// // 		log.Println(err)
+// // 		w.WriteHeader(http.StatusInternalServerError)
+// // 		return
+// // 	}
+
+// // 	searchInv := &InvSearch{}
+// // 	err = json.Unmarshal(body, searchInv)
+// // 	if err != nil {
+// // 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+// // 		log.Println(err)
+// // 		w.WriteHeader(http.StatusInternalServerError)
+// // 		return
+// // 	}
+
+// // 	startTime := searchInv.MaxTime - 3600
+
+// // 	//here we need to send one hour, weekly, monthly
+
+// // 	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+
+// // 		"timestamp": map[string]*int64{
+// // 			"$lte": &searchInv.MaxTime,
+// // 			"$gte": &startTime,
+// // 		},
+// // 	})
+// // 	if err != nil {
+// // 		err = errors.Wrap(err, "Error while fetching product.")
+// // 		log.Println(err)
+// // 		w.WriteHeader(http.StatusInternalServerError)
+// // 		return
+// // 	}
+// // 	resultCount := strconv.Itoa(len(findResults))
+// // 	w.Write([]byte(resultCount))
+// // 	w.WriteHeader(http.StatusOK)
+// // }

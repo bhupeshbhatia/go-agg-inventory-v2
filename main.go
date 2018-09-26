@@ -28,31 +28,17 @@ func setAuthenticationRoute(router *mux.Router) *mux.Router {
 	router.HandleFunc("/add-product", service.AddInventory).Methods("POST")
 	router.HandleFunc("/update-product", service.UpdateInventory).Methods("POST")
 	router.HandleFunc("/delete-product", service.DeleteInventory).Methods("POST")
-	// router.HandleFunc("/search-range", service.SearchInTimeRange).Methods("POST")
-	router.HandleFunc("/get-inv", service.GetInvFromMongo).Methods("GET")
-	router.HandleFunc("/load-data", service.LoadDataInMongo).Methods("GET")
-	// router.HandleFunc("/get-count", service.GetInvForToday).Methods("POST")
-
-	// router.Handle("/fileaccess",
-	// 	negroni.New(
-	// 		negroni.HandlerFunc(service.FileInsideServer),
-	// 	)).Methods("GET")
-
-	// router.Handle("/logout",
-	//     negroni.New(
-	//         negroni.HandlerFunc(authentication.RequireTokenAuthentication),
-	//         negroni.HandlerFunc(services.Logout),
-	//     )).Methods("GET")
+	router.HandleFunc("/search-range", service.SearchTimeRange).Methods("POST")
+	router.HandleFunc("/create-data", service.LoadDataInMongo).Methods("GET")
+	router.HandleFunc("/load-table", service.LoadInventoryTable).Methods("POST")
+	router.HandleFunc("/dist-weight", service.DistributionByWeight).Methods("GET")
+	router.HandleFunc("/twsalewaste", service.TotalWeightSoldWasteDonatePerDay).Methods("POST")
+	router.HandleFunc("/perday-sale", service.TotalProductSoldGraph).Methods("POST")
 
 	return router
 }
 
 func main() {
-	// u2, err := uuid.NewV4()
-	// if err != nil {
-	// 	log.Fatalf("failed to generate UUID: %v", err)
-	// }
-	// log.Println(u2)
 	err := godotenv.Load()
 	if err != nil {
 		err = errors.Wrap(err,
