@@ -28,13 +28,14 @@ func setAuthenticationRoute(router *mux.Router) *mux.Router {
 	router.HandleFunc("/add-product", service.AddInventory).Methods("POST")
 	router.HandleFunc("/update-product", service.UpdateInventory).Methods("POST")
 	router.HandleFunc("/delete-product", service.DeleteInventory).Methods("POST")
-	router.HandleFunc("/search-range", service.SearchTimeRange).Methods("POST")
+	router.HandleFunc("/search-range", service.TimeSearchInTable).Methods("POST")
 	router.HandleFunc("/create-data", service.LoadDataInMongo).Methods("GET")
 	router.HandleFunc("/load-table", service.LoadInventoryTable).Methods("POST")
 	router.HandleFunc("/dist-weight", service.DistributionByWeight).Methods("GET")
 	router.HandleFunc("/twsalewaste", service.TotalWeightSoldWasteDonatePerDay).Methods("POST", "OPTIONS")
+	router.HandleFunc("/search-table", service.SearchInvTable).Methods("POST")
 
-	router.HandleFunc("/perday-sale", service.TotalProductSoldGraph).Methods("POST")
+	router.HandleFunc("/perday-sale", service.ProdSoldPerDay).Methods("POST")
 
 	return router
 }
@@ -48,11 +49,16 @@ func main() {
 		log.Println(err)
 	}
 
+	// headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
+	// originsOk := handlers.AllowedOrigins([]string{("ORIGIN_ALLOWED")})
+	// methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
+
 	// service.GetProductCount()
 
 	router := initRoutes()
 	n := negroni.Classic()
 	n.UseHandler(router)
+	// http.ListenAndServe(":8080", handlers.CORS(originsOk, headersOk, methodsOk)(n))
 	http.ListenAndServe(":8080", n)
 }
 

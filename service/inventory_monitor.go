@@ -15,8 +15,10 @@ import (
 )
 
 type InvSearch struct {
-	From int64 `bson:"from,omitempty" json:"from,omitempty"`
-	To   int64 `bson:"to,omitempty" json:"to,omitempty"`
+	EndDate   int64  `bson:"end_date,omitempty" json:"end_date,omitempty"`
+	StartDate int64  `bson:"start_date,omitempty" json:"start_date,omitempty"`
+	SearchKey string `bson:"search_key,omitempty" json:"search_key,omitempty"`
+	SearchVal string `bson:"search_val,omitempty" json:"search_val,omitempty"`
 }
 
 type InvDashboard struct {
@@ -80,6 +82,65 @@ func LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write(invJSON)
 	}
+}
+
+func SearchInvTable(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	//DB connection
+	Db, err := connectDB.ConfirmDbExists()
+	if err != nil {
+		err = errors.Wrap(err, "Mongo client unable to connect")
+		log.Println(err)
+		return
+	}
+
+	// log.Println(string(body))
+
+	//Convert body of type []byte into type InvSearch
+	search := InvSearch{}
+
+	err = json.Unmarshal(body, &search)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+		log.Println(err)
+		return
+	}
+
+	log.Println(search)
+
+	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+
+		search.SearchKey: map[string]*string{
+			"$eq": &search.SearchVal,
+		},
+	})
+	if err != nil {
+		err = errors.Wrap(err, "Error while fetching product.")
+		log.Println(err)
+		return
+	}
+
+	inventory := []model.Inventory{}
+
+	for _, v := range findResults {
+		resultInv := v.(*model.Inventory)
+		inventory = append(inventory, *resultInv)
+	}
+
+	searchResult, err := json.Marshal(inventory)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to create response body")
+		log.Println(err)
+		return
+	}
+	w.Write(searchResult)
+
 }
 
 func AddInventory(w http.ResponseWriter, r *http.Request) {
@@ -234,7 +295,7 @@ func DeleteInventory(w http.ResponseWriter, r *http.Request) {
 }
 
 //need end and start time (start in days)
-func SearchTimeRange(w http.ResponseWriter, r *http.Request) {
+func TimeSearchInTable(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -266,10 +327,9 @@ func SearchBtwTimeRange(req []byte) *[]model.Inventory {
 		return nil
 	}
 
-	searchInv := InvSearch{}
+	searchInv := []InvSearch{}
 
 	var findResults []interface{}
-	log.Println("===========================")
 
 	err = json.Unmarshal(req, &searchInv)
 	if err != nil {
@@ -278,19 +338,19 @@ func SearchBtwTimeRange(req []byte) *[]model.Inventory {
 		return nil
 	}
 
-	log.Println(searchInv)
+	for _, searchVal := range searchInv {
+		findResults, err = Db.Collection.FindMap(map[string]interface{}{
 
-	findResults, err = Db.Collection.FindMap(map[string]interface{}{
-
-		"timestamp": map[string]*int64{
-			"$lt": &searchInv.From,
-			"$gt": &searchInv.To,
-		},
-	})
-	if err != nil {
-		err = errors.Wrap(err, "Error while fetching product.")
-		log.Println(err)
-		return nil
+			"timestamp": map[string]*int64{
+				"$lt": &searchVal.EndDate,
+				"$gt": &searchVal.StartDate,
+			},
+		})
+		if err != nil {
+			err = errors.Wrap(err, "Error while fetching product.")
+			log.Println(err)
+			return nil
+		}
 	}
 
 	inventory := []model.Inventory{}
@@ -319,6 +379,11 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 	var wasteWeight float64
 	var donateWeight float64
 
+	var tweight []float64
+	var sweight []float64
+	var wweight []float64
+	var dweight []float64
+
 	log.Println(r)
 
 	//Get timestamp from frontend
@@ -329,8 +394,6 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	log.Println("BLHHHHHHHHHHHHHHHHHHHHH")
 
 	//Get list of inventory from SearchDay
 	inventory := SearchBtwTimeRange(body) //Just need max time
@@ -343,36 +406,107 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 
 	for _, v := range *inventory {
 		totalWeight = v.TotalWeight + totalWeight
+		tweight = append(tweight, totalWeight)
+
 		soldWeight = v.SoldWeight + soldWeight
+		sweight = append(sweight, soldWeight)
+
 		wasteWeight = v.WasteWeight + wasteWeight
+		wweight = append(wweight, wasteWeight)
+
 		donateWeight = v.DonateWeight + donateWeight
+		dweight = append(dweight, donateWeight)
 	}
 
-	invSearch := &InvSearch{}
-	err = json.Unmarshal(body, invSearch)
+	invSearch := []InvSearch{}
+	err = json.Unmarshal(body, &invSearch)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to Unmarshal timestamp from body - TwSaleWasteDonate")
 		log.Println(err)
 		return
 	}
 
-	totalResult, err := json.Marshal(InvDashboard{
-		TotalWeight:  totalWeight,
-		SoldWeight:   soldWeight,
-		WasteWeight:  wasteWeight,
-		DonateWeight: donateWeight,
-		Dates:        invSearch.From,
-	})
+	log.Println(invSearch)
+	var totalResult []byte
+
+	dash := make(map[int]InvDashboard)
+	for i, v := range invSearch {
+
+		dash[i] = InvDashboard{
+			TotalWeight:  tweight[i],
+			SoldWeight:   sweight[i],
+			WasteWeight:  wweight[i],
+			DonateWeight: dweight[i],
+			Dates:        v.StartDate,
+		}
+
+		log.Println(dash)
+	}
+
+	totalResult, err = json.Marshal(dash)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to create response body")
 		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.Write(totalResult)
+
+	// for _, v := range *inventory {
+	// 	totalWeight = v.TotalWeight + totalWeight
+	// 	soldWeight = v.SoldWeight + soldWeight
+	// 	wasteWeight = v.WasteWeight + wasteWeight
+	// 	donateWeight = v.DonateWeight + donateWeight
+	// }
+
+	// []interface{}{tweight[i], sweight[i], wweight[i], dweight[i], v.From}
+	// dash[i][]
+
+	// totalResult, err = json.Marshal(
+	// 	InvDashboard{
+	// 		TotalWeight:  tweight[i],
+	// 		SoldWeight:   sweight[i],
+	// 		WasteWeight:  wweight[i],
+	// 		DonateWeight: dweight[i],
+	// 		Dates:        v.From,
+	// 	})
+	// if err != nil {
+	// 	err = errors.Wrap(err, "Unable to create response body")
+	// 	log.Println(err)
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	return
+	// }
+
+	////////////////////////////////////////////////////////////
+	// log.Println(i)
+	// // log.Println(len(string(totalResult)), "-------------")
+
+	// err = json.Unmarshal(totalResult, dashInv)
+	// if err != nil {
+	// 	err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+	// 	log.Println(err)
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	return
+	// }
+	// log.Println(dashInv)
+
+	// // test = append(test, totalResult)
 }
 
-func TotalProductSoldGraph(w http.ResponseWriter, r *http.Request) {
+func ProdSoldPerDay(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	var soldWeight float64
+	var sweight []float64
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -384,24 +518,40 @@ func TotalProductSoldGraph(w http.ResponseWriter, r *http.Request) {
 	inventory := SearchBtwTimeRange(body) //Just need max time
 
 	if inventory == nil {
-		log.Println(errors.New("Unable to get anything back from SearchWithTime function"))
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Println(errors.New("Unable to get anything back from SearchBtwTimeRange function"))
 		return
 	}
 
-	var soldWeight float64
-
 	for _, v := range *inventory {
 		soldWeight = v.SoldWeight + soldWeight
+		sweight = append(sweight, soldWeight)
 	}
 
-	totalResult, err := json.Marshal(InvDashboard{
-		SoldWeight: soldWeight,
-	})
+	invSearch := []InvSearch{}
+	err = json.Unmarshal(body, &invSearch)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to Unmarshal timestamp from body - TwSaleWasteDonate")
+		log.Println(err)
+		return
+	}
+
+	var totalResult []byte
+
+	dash := make(map[int]InvDashboard)
+	for i, v := range invSearch {
+
+		dash[i] = InvDashboard{
+			SoldWeight: sweight[i],
+			Dates:      v.StartDate,
+		}
+
+		log.Println(dash)
+	}
+
+	totalResult, err = json.Marshal(dash)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to create response body")
 		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.Write(totalResult)
