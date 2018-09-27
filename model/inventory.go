@@ -30,7 +30,7 @@ type Inventory struct {
 	AggregateID      int8              `bson:"aggregate_id,omitempty" json:"aggregate_id,omitempty"`
 	DateSold         int64             `bson:"date_sold,omitempty" json:"date_sold,omitempty"`
 	SalePrice        float64           `bson:"sale_price,omitempty" json:"sale_price,omitempty"`
-	SoldWeight       float64           `bson:"sale_weight,omitempty" json:"sale_weight,omitempty"`
+	SoldWeight       float64           `bson:"sold_weight,omitempty" json:"sold_weight,omitempty"`
 }
 
 type marshalInventory struct {
@@ -52,7 +52,7 @@ type marshalInventory struct {
 	AggregateID      int8              `bson:"aggregate_id,omitempty" json:"aggregate_id,omitempty"`
 	DateSold         int64             `bson:"date_sold,omitempty" json:"date_sold,omitempty"`
 	SalePrice        float64           `bson:"sale_price,omitempty" json:"sale_price,omitempty"`
-	SoldWeight       float64           `bson:"sale_weight,omitempty" json:"sale_weight,omitempty"`
+	SoldWeight       float64           `bson:"sold_weight,omitempty" json:"sold_weight,omitempty"`
 }
 
 func (i *Inventory) MarshalJSON() ([]byte, error) {
@@ -132,7 +132,9 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 		return err
 	}
 
-	i.ID = m["_id"].(objectid.ObjectID)
+	if m["_id"] != nil {
+		i.ID = m["_id"].(objectid.ObjectID)
+	}
 
 	i.ItemID, err = uuuid.FromString(m["item_id"].(string))
 	if err != nil {
@@ -151,24 +153,63 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
 		return err
 	}
-	i.Name = m["name"].(string)
-	i.Origin = m["origin"].(string)
-	i.TotalWeight = m["total_weight"].(float64)
-	i.Price = m["price"].(float64)
-	i.Location = m["location"].(string)
-	i.DateArrived = m["date_arrived"].(int64)
-	i.ExpiryDate = m["expiry_date"].(int64)
-	i.Timestamp = m["timestamp"].(int64)
-	i.WasteWeight = m["waste_weight"].(float64)
-	i.DonateWeight = m["donate_weight"].(float64)
+
+	if m["name"] != nil {
+		i.Name = m["name"].(string)
+	}
+
+	if m["origin"] != nil {
+		i.Origin = m["origin"].(string)
+	}
+
+	if m["total_weight"] != nil {
+		i.TotalWeight = m["total_weight"].(float64)
+	}
+
+	if m["price"] != nil {
+		i.Price = m["price"].(float64)
+	}
+
+	if m["location"] != nil {
+		i.Location = m["location"].(string)
+	}
+
+	if m["date_arrived"] != nil {
+		i.DateArrived = m["date_arrived"].(int64)
+	}
+
+	if m["expiry_date"] != nil {
+		i.ExpiryDate = m["expiry_date"].(int64)
+	}
+
+	if m["timestamp"] != nil {
+		i.Timestamp = m["timestamp"].(int64)
+	}
+
+	if m["waste_weight"] != nil {
+		i.WasteWeight = m["waste_weight"].(float64)
+	}
+
+	if m["donate_weight"] != nil {
+		i.DonateWeight = m["donate_weight"].(float64)
+	}
+
 	if m["aggregate_version"] != nil {
 		i.AggregateVersion = m["aggregate_version"].(int64)
 	}
+
 	if m["aggregate_id"] != nil {
 		// i.AggregateID = m["aggregate_id"].(int8)
 	}
-	i.DateSold = m["date_sold"].(int64)
-	i.SalePrice = m["sale_price"].(float64)
+
+	if m["date_sold"] != nil {
+		i.DateSold = m["date_sold"].(int64)
+	}
+
+	if m["sale_price"] != nil {
+		i.SalePrice = m["sale_price"].(float64)
+	}
+
 	if m["sold_weight"] != nil {
 		i.SoldWeight = m["sold_weight"].(float64)
 	}
@@ -177,56 +218,125 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 
 func (i *Inventory) UnmarshalJSON(in []byte) error {
 	m := make(map[string]interface{})
-	err := bson.Unmarshal(in, m)
+	err := json.Unmarshal(in, &m)
 	if err != nil {
 		err = errors.Wrap(err, "Unmarshal Error")
 		return err
 	}
 
-	i.ID = m["_id"].(objectid.ObjectID)
+	if m["_id"] != nil {
+		i.ID = m["_id"].(objectid.ObjectID)
+	}
 
-	i.ItemID, err = uuuid.FromString(m["item_id"].(string))
+	if m["item_id"] != nil {
+		i.ItemID, err = uuuid.FromString(m["item_id"].(string))
+	}
 	if err != nil {
 		err = errors.Wrap(err, "Error parsing ItemID for inventory")
 		return err
 	}
 
-	i.DeviceID, err = uuuid.FromString(m["device_id"].(string))
+	if m["device_id"] != nil {
+		i.DeviceID, err = uuuid.FromString(m["device_id"].(string))
+	}
 	if err != nil {
 		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
 		return err
 	}
 
-	i.RsCustomerID, err = uuuid.FromString(m["rs_customer_id"].(string))
+	if m["rs_customer_id"] != nil {
+		i.RsCustomerID, err = uuuid.FromString(m["rs_customer_id"].(string))
+	}
 	if err != nil {
 		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
 		return err
 	}
-	var ok bool
-	i.Name = m["name"].(string)
-	i.Origin = m["origin"].(string)
-	i.TotalWeight = m["total_weight"].(float64)
-	i.Price, ok = m["price"].(float64)
-	if !ok {
-		log.Println("Error converting price to float64")
+
+	if m["name"] != nil {
+		i.Name = m["name"].(string)
 	}
-	i.Location = m["location"].(string)
-	i.DateArrived = m["date_arrived"].(int64)
-	i.ExpiryDate = m["expiry_date"].(int64)
-	i.Timestamp = m["timestamp"].(int64)
-	i.WasteWeight = m["waste_weight"].(float64)
-	i.DonateWeight = m["donate_weight"].(float64)
+
+	if m["origin"] != nil {
+		i.Origin = m["origin"].(string)
+	}
+
+	if m["total_weight"] != nil {
+		i.TotalWeight = m["total_weight"].(float64)
+	}
+
+	if m["price"] != nil {
+		i.Price = m["price"].(float64)
+	}
+
+	if m["location"] != nil {
+		i.Location = m["location"].(string)
+	}
+
+	if m["date_arrived"] != nil {
+		i.DateArrived = m["date_arrived"].(int64)
+	}
+
+	if m["expiry_date"] != nil {
+		i.ExpiryDate = m["expiry_date"].(int64)
+	}
+
+	if m["timestamp"] != nil {
+		i.Timestamp = m["timestamp"].(int64)
+	}
+
+	if m["waste_weight"] != nil {
+		i.WasteWeight = m["waste_weight"].(float64)
+	}
+
+	if m["donate_weight"] != nil {
+		i.DonateWeight = m["donate_weight"].(float64)
+	}
+
 	if m["aggregate_version"] != nil {
 		i.AggregateVersion = m["aggregate_version"].(int64)
 	}
+
 	if m["aggregate_id"] != nil {
 		// i.AggregateID = m["aggregate_id"].(int8)
 	}
-	i.DateSold = m["date_sold"].(int64)
-	i.SalePrice = m["sale_price"].(float64)
+
+	if m["date_sold"] != nil {
+		i.DateSold = m["date_sold"].(int64)
+	}
+
+	if m["sale_price"] != nil {
+		i.SalePrice = m["sale_price"].(float64)
+	}
+
 	if m["sold_weight"] != nil {
 		i.SoldWeight = m["sold_weight"].(float64)
 	}
+
+	// var ok bool
+	// i.Name = m["name"].(string)
+	// i.Origin = m["origin"].(string)
+	// i.TotalWeight = m["total_weight"].(float64)
+	// i.Price, ok = m["price"].(float64)
+	// if !ok {
+	// 	log.Println("Error converting price to float64")
+	// }
+	// i.Location = m["location"].(string)
+	// i.DateArrived = m["date_arrived"].(int64)
+	// i.ExpiryDate = m["expiry_date"].(int64)
+	// i.Timestamp = m["timestamp"].(int64)
+	// i.WasteWeight = m["waste_weight"].(float64)
+	// i.DonateWeight = m["donate_weight"].(float64)
+	// if m["aggregate_version"] != nil {
+	// 	i.AggregateVersion = m["aggregate_version"].(int64)
+	// }
+	// if m["aggregate_id"] != nil {
+	// 	// i.AggregateID = m["aggregate_id"].(int8)
+	// }
+	// i.DateSold = m["date_sold"].(int64)
+	// i.SalePrice = m["sale_price"].(float64)
+	// if m["sold_weight"] != nil {
+	// 	i.SoldWeight = m["sold_weight"].(float64)
+	// }
 
 	return nil
 }

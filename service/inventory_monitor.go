@@ -24,11 +24,11 @@ type InvSearch struct {
 type InvDashboard struct {
 	ProdName     string  `bson:"prod_name,omitempty" json:"prod_name,omitempty"`
 	ProdWeight   float64 `bson:"prod_weight,omitempty" json:"prod_weight,omitempty"`
-	TotalWeight  float64 `bson:"prod_weight,omitempty" json:"total_weight,omitempty"`
-	SoldWeight   float64 `bson:"prod_weight,omitempty" json:"sold_weight,omitempty"`
-	WasteWeight  float64 `bson:"prod_weight,omitempty" json:"waste_weight,omitempty"`
-	ProductSold  int64   `bson:"prod_weight,omitempty" json:"product_sold,omitempty"`
-	DonateWeight float64 `bson:"prod_weight,omitempty" json:"donate_product,omitempty"`
+	TotalWeight  float64 `bson:"total_weight,omitempty" json:"total_weight,omitempty"`
+	SoldWeight   float64 `bson:"sold_weight,omitempty" json:"sold_weight,omitempty"`
+	WasteWeight  float64 `bson:"waste_weight,omitempty" json:"waste_weight,omitempty"`
+	ProductSold  int64   `bson:"prod_sold,omitempty" json:"prod_sold,omitempty"`
+	DonateWeight float64 `bson:"donate_weight,omitempty" json:"donate_weight,omitempty"`
 	Dates        int64   `bson:"dates,omitempty" json:"dates,omitempty"`
 }
 
@@ -89,19 +89,16 @@ func SearchOneTime(req []byte) *[]model.Inventory {
 
 	searchInv := InvSearch{}
 
-	var findResults []interface{}
-	log.Println(findResults)
-
 	err = json.Unmarshal(req, &searchInv)
 	if err != nil {
-		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+		err = errors.Wrap(err, "Unable to unmarshal - SearchOneTime")
 		log.Println(err)
 		return nil
 	}
 
 	log.Println(searchInv, "************************")
 
-	findResults2, err := Db.Collection.Find(map[string]interface{}{
+	findResults, err := Db.Collection.Find(map[string]interface{}{
 
 		"timestamp": map[string]int64{
 			"$lt": searchInv.EndDate,
@@ -112,7 +109,7 @@ func SearchOneTime(req []byte) *[]model.Inventory {
 		log.Println(err)
 		return nil
 	}
-	log.Println(findResults2)
+	log.Println(findResults)
 
 	inventory := []model.Inventory{}
 
@@ -144,36 +141,36 @@ func LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println(string(body))
+	// log.Println(string(body))
 
 	// inventory := SearchBtwTimeRange(body) //Just need max time
 	inventory := SearchOneTime(body)
 
-	table := []model.Inventory{}
-	for _, v := range *inventory {
-		table = append(table, model.Inventory{
-			ItemID:       v.ItemID,
-			Name:         v.Name,
-			Origin:       v.Origin,
-			DeviceID:     v.DeviceID,
-			TotalWeight:  v.TotalWeight,
-			Price:        v.Price,
-			Location:     v.Location,
-			DateArrived:  v.DateArrived,
-			ExpiryDate:   v.ExpiryDate,
-			Timestamp:    v.Timestamp,
-			RsCustomerID: v.RsCustomerID,
-			WasteWeight:  v.WasteWeight,
-			DonateWeight: v.DonateWeight,
-			DateSold:     v.DateSold,
-			SalePrice:    v.SalePrice,
-			SoldWeight:   v.SoldWeight,
-		})
+	// table := []model.Inventory{}
+	// for _, v := range *inventory {
+	// 	table = append(table, model.Inventory{
+	// 		ItemID:       v.ItemID,
+	// 		Name:         v.Name,
+	// 		Origin:       v.Origin,
+	// 		DeviceID:     v.DeviceID,
+	// 		TotalWeight:  v.TotalWeight,
+	// 		Price:        v.Price,
+	// 		Location:     v.Location,
+	// 		DateArrived:  v.DateArrived,
+	// 		ExpiryDate:   v.ExpiryDate,
+	// 		Timestamp:    v.Timestamp,
+	// 		RsCustomerID: v.RsCustomerID,
+	// 		WasteWeight:  v.WasteWeight,
+	// 		DonateWeight: v.DonateWeight,
+	// 		DateSold:     v.DateSold,
+	// 		SalePrice:    v.SalePrice,
+	// 		SoldWeight:   v.SoldWeight,
+	// 	})
 
-		log.Println(table)
-	}
+	// 	log.Println(&table, "KKKKKKKKKKKKKKKKKKKKKKKKKKK")
+	// }
 
-	totalResult, err := json.Marshal(&table)
+	totalResult, err := json.Marshal(&inventory)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to create response body")
 		log.Println(err)
@@ -440,20 +437,23 @@ func DeleteInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inventory := &[]model.Inventory{}
+	log.Println(string(body))
+
+	inventory := []model.Inventory{}
 	//Convert body of type []byte into type []model.Inventory{}
-	err = json.Unmarshal(body, inventory)
+	err = json.Unmarshal(body, &inventory)
 	if err != nil {
-		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+		err = errors.Wrap(err, "Unable to unmarshal - DeleteInventory")
 		log.Println(err)
 		return
 	}
 
-	for _, inVal := range *inventory {
-		if inVal.ItemID.String() == "" {
-			log.Println("ItemID not found")
-			return
-		}
+	for _, inVal := range inventory {
+		// log.Println(inVal)
+		// if inVal.ItemID == string() {
+		// 	log.Println("ItemID not found")
+		// 	return
+		// }
 
 		deleteResult, err := Db.Collection.DeleteMany(&model.Inventory{
 			ItemID: inVal.ItemID,
@@ -513,11 +513,11 @@ func SearchBtwTimeRange(req []byte) *[]model.Inventory {
 		log.Println(err)
 		return nil
 	}
-
+	log.Println(string(req))
 	searchInv := []InvSearch{}
 
 	var findResults []interface{}
-	log.Println(findResults)
+
 	err = json.Unmarshal(req, &searchInv)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
@@ -570,8 +570,6 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 	var wweight []float64
 	var dweight []float64
 
-	log.Println(r)
-
 	//Get timestamp from frontend
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -596,6 +594,7 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 		totalWeight = v.TotalWeight + totalWeight
 		tweight = append(tweight, totalWeight)
 
+		log.Println(v.SoldWeight, "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
 		soldWeight = v.SoldWeight + soldWeight
 		sweight = append(sweight, soldWeight)
 
@@ -620,6 +619,7 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 	dash := make(map[int]InvDashboard)
 	// dash := []InvDashboard{}
 	for i, v := range invSearch {
+		log.Println(sweight[i])
 
 		dash[i] = InvDashboard{
 			TotalWeight:  tweight[i],
@@ -704,16 +704,18 @@ func ProdSoldPerHour(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inventory := SearchBtwTimeRange(body) //Just need max time
+	inventory := *SearchBtwTimeRange(body) //Just need max time
 
-	if inventory == nil {
+	if len(inventory) == 0 {
 		log.Println(errors.New("Unable to get anything back from SearchBtwTimeRange function"))
 		return
 	}
 
-	for _, v := range *inventory {
+	for _, v := range inventory {
 		soldWeight = v.SoldWeight + soldWeight
 		sweight = append(sweight, soldWeight)
+
+		log.Println(sweight, "********************")
 	}
 
 	invSearch := []InvSearch{}
@@ -753,6 +755,7 @@ func ProdSoldPerHour(w http.ResponseWriter, r *http.Request) {
 
 //Need end time
 func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
+
 	if origin := r.Header.Get("Origin"); origin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")

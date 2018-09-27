@@ -49,9 +49,9 @@ var provinceNames = []string{"ON Canada", "BC Canada", "SK Canada", "MN Canada",
 func GenerateDataForInv() model.Inventory {
 
 	randNameAndLocation := generateRandomValue(1, 10)
-	randOrigin := generateRandomValue(1, 4)
-	randDateArr := generateRandomValue(1, 7)                          //in hours
-	randTimestamp := generateRandomValue(randDateArr, randDateArr+2)  //in hours
+	randOrigin := generateRandomValue(1, 6)
+	randDateArr := generateRandomValue(1, 6)                          //in hours
+	randTimestamp := generateRandomValue(randDateArr, randDateArr+1)  //in hours
 	randExpiry := generateRandomValue(int((randTimestamp/24)+1), 21)  //in days
 	randDatesold := generateRandomValue(randTimestamp, randExpiry*24) //in hours
 	randPrice := generateRandomValue(5000, 10000)
@@ -72,10 +72,13 @@ func GenerateDataForInv() model.Inventory {
 		AggregateID:  2,
 		DateArrived:  time.Now().Add(time.Duration(randDateArr) * time.Hour).Unix(),
 		ExpiryDate:   time.Now().AddDate(0, 0, randExpiry).Unix(),
-		Timestamp:    time.Now().Add(time.Duration(randTimestamp) * time.Hour).Unix(),
-		DateSold:     time.Now().Add(time.Duration(randDatesold) * time.Hour).Unix(),
-		SalePrice:    float64(generateRandomValue(2, 4)),
-		SoldWeight:   float64(generateRandomValue(randWasteWeight, randTotalWeight)),
+		// Timestamp:    time.Now().Add(time.Duration(randTimestamp) * time.Hour).Unix(),
+		Timestamp: time.Now().Add(time.Duration(1) * time.Hour).Unix(),
+		// DateSold:     time.Now().Add(time.Duration(randDatesold) * time.Hour).Unix(),
+		DateSold: time.Now().Add(time.Duration(randDatesold) * time.Hour).Unix(),
+
+		SalePrice:  float64(generateRandomValue(2, 4)),
+		SoldWeight: float64(generateRandomValue(randWasteWeight, randTotalWeight)),
 	}
 	return inventory
 }
