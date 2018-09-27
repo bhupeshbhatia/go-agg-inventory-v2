@@ -136,19 +136,29 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 		i.ID = m["_id"].(objectid.ObjectID)
 	}
 
-	i.ItemID, err = uuuid.FromString(m["item_id"].(string))
+	// log.Println((m["item_id"].(map[string]interface{}))["uuid"])
+
+	if m["item_id"] != nil {
+		i.ItemID, err = uuuid.FromString(m["item_id"].(string))
+	}
 	if err != nil {
 		err = errors.Wrap(err, "Error parsing ItemID for inventory")
 		return err
 	}
 
-	i.DeviceID, err = uuuid.FromString(m["device_id"].(string))
+	if m["device_id"] != nil {
+		i.DeviceID, err = uuuid.FromString(m["device_id"].(string))
+	}
+
 	if err != nil {
 		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
 		return err
 	}
 
-	i.RsCustomerID, err = uuuid.FromString(m["rs_customer_id"].(string))
+	if m["rs_customer_id"] != nil {
+		i.RsCustomerID, err = uuuid.FromString(m["rs_customer_id"].(string))
+	}
+
 	if err != nil {
 		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
 		return err
@@ -173,17 +183,33 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 	if m["location"] != nil {
 		i.Location = m["location"].(string)
 	}
-
+	var ok bool
 	if m["date_arrived"] != nil {
-		i.DateArrived = m["date_arrived"].(int64)
+		i.DateArrived, ok = m["date_arrived"].(int64)
+		if !ok {
+			i.DateArrived = int64(m["date_arrived"].(float64))
+		}
 	}
 
 	if m["expiry_date"] != nil {
-		i.ExpiryDate = m["expiry_date"].(int64)
+		i.ExpiryDate, ok = m["expiry_date"].(int64)
+		if !ok {
+			i.DateArrived = int64(m["expiry_date"].(float64))
+		}
 	}
 
 	if m["timestamp"] != nil {
-		i.Timestamp = m["timestamp"].(int64)
+		i.Timestamp, ok = m["timestamp"].(int64)
+		if !ok {
+			i.DateArrived = int64(m["timestamp"].(float64))
+		}
+	}
+
+	if m["date_sold"] != nil {
+		i.DateSold, ok = m["date_sold"].(int64)
+		if !ok {
+			i.DateArrived = int64(m["date_sold"].(float64))
+		}
 	}
 
 	if m["waste_weight"] != nil {
@@ -200,10 +226,6 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 
 	if m["aggregate_id"] != nil {
 		// i.AggregateID = m["aggregate_id"].(int8)
-	}
-
-	if m["date_sold"] != nil {
-		i.DateSold = m["date_sold"].(int64)
 	}
 
 	if m["sale_price"] != nil {
@@ -273,15 +295,19 @@ func (i *Inventory) UnmarshalJSON(in []byte) error {
 	}
 
 	if m["date_arrived"] != nil {
-		i.DateArrived = m["date_arrived"].(int64)
+		i.DateArrived = int64(m["date_arrived"].(float64))
 	}
 
 	if m["expiry_date"] != nil {
-		i.ExpiryDate = m["expiry_date"].(int64)
+		i.ExpiryDate = int64(m["expiry_date"].(float64))
 	}
 
 	if m["timestamp"] != nil {
-		i.Timestamp = m["timestamp"].(int64)
+		i.Timestamp = int64(m["timestamp"].(float64))
+	}
+
+	if m["date_sold"] != nil {
+		i.DateSold = int64(m["date_sold"].(float64))
 	}
 
 	if m["waste_weight"] != nil {
@@ -298,10 +324,6 @@ func (i *Inventory) UnmarshalJSON(in []byte) error {
 
 	if m["aggregate_id"] != nil {
 		// i.AggregateID = m["aggregate_id"].(int8)
-	}
-
-	if m["date_sold"] != nil {
-		i.DateSold = m["date_sold"].(int64)
 	}
 
 	if m["sale_price"] != nil {

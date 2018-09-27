@@ -59,7 +59,7 @@ func main() {
 	n := negroni.Classic()
 	n.UseHandler(router)
 	// http.ListenAndServe(":8080", handlers.CORS(originsOk, headersOk, methodsOk)(n))
-	http.ListenAndServe(":8085", n)
+	http.ListenAndServe(":8080", n)
 }
 
 //----------------------------------------------------------

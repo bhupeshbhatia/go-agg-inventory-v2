@@ -146,49 +146,12 @@ func LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
 	// inventory := SearchBtwTimeRange(body) //Just need max time
 	inventory := SearchOneTime(body)
 
-	// table := []model.Inventory{}
-	// for _, v := range *inventory {
-	// 	table = append(table, model.Inventory{
-	// 		ItemID:       v.ItemID,
-	// 		Name:         v.Name,
-	// 		Origin:       v.Origin,
-	// 		DeviceID:     v.DeviceID,
-	// 		TotalWeight:  v.TotalWeight,
-	// 		Price:        v.Price,
-	// 		Location:     v.Location,
-	// 		DateArrived:  v.DateArrived,
-	// 		ExpiryDate:   v.ExpiryDate,
-	// 		Timestamp:    v.Timestamp,
-	// 		RsCustomerID: v.RsCustomerID,
-	// 		WasteWeight:  v.WasteWeight,
-	// 		DonateWeight: v.DonateWeight,
-	// 		DateSold:     v.DateSold,
-	// 		SalePrice:    v.SalePrice,
-	// 		SoldWeight:   v.SoldWeight,
-	// 	})
-
-	// 	log.Println(&table, "KKKKKKKKKKKKKKKKKKKKKKKKKKK")
-	// }
-
 	totalResult, err := json.Marshal(&inventory)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to create response body")
 		log.Println(err)
 		return
 	}
-
-	// if len(*inventory) > 0 {
-	// 	for _, v := range inventory {
-	// 		invJSON, err := json.Marshal(inventory)
-	// 		if err != nil {
-	// 			err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
-	// 			log.Println(err)
-	// 			return
-	// 		}
-	// 	}
-
-	// 	w.Write(invJSON)
-	// }
 	w.Write(totalResult)
 }
 
@@ -337,6 +300,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
+
 	if origin := r.Header.Get("Origin"); origin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
@@ -379,6 +343,41 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	//Confirm that uuid is not empty
 	if inventory.ItemID.String() == "" {
 		log.Println("UUID is empty")
+		return
+	}
+
+	if inventory.Name == "" {
+		log.Println("Name is empty")
+		return
+	}
+
+	if inventory.Origin == "" {
+		log.Println("Origin is empty")
+		return
+	}
+
+	if inventory.DateArrived == 0 {
+		log.Println("Date arrived is empty")
+		return
+	}
+
+	if inventory.DeviceID.String() == "" {
+		log.Println("DeviceID is empty")
+		return
+	}
+
+	if inventory.Price == 0 {
+		log.Println("Price is empty")
+		return
+	}
+
+	if inventory.TotalWeight == 0 {
+		log.Println("Total weight is empty")
+		return
+	}
+
+	if inventory.Location == "" {
+		log.Println("Location is empty")
 		return
 	}
 
@@ -639,46 +638,6 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(totalResult)
-
-	// for _, v := range *inventory {
-	// 	totalWeight = v.TotalWeight + totalWeight
-	// 	soldWeight = v.SoldWeight + soldWeight
-	// 	wasteWeight = v.WasteWeight + wasteWeight
-	// 	donateWeight = v.DonateWeight + donateWeight
-	// }
-
-	// []interface{}{tweight[i], sweight[i], wweight[i], dweight[i], v.From}
-	// dash[i][]
-
-	// totalResult, err = json.Marshal(
-	// 	InvDashboard{
-	// 		TotalWeight:  tweight[i],
-	// 		SoldWeight:   sweight[i],
-	// 		WasteWeight:  wweight[i],
-	// 		DonateWeight: dweight[i],
-	// 		Dates:        v.From,
-	// 	})
-	// if err != nil {
-	// 	err = errors.Wrap(err, "Unable to create response body")
-	// 	log.Println(err)
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
-
-	////////////////////////////////////////////////////////////
-	// log.Println(i)
-	// // log.Println(len(string(totalResult)), "-------------")
-
-	// err = json.Unmarshal(totalResult, dashInv)
-	// if err != nil {
-	// 	err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
-	// 	log.Println(err)
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
-	// log.Println(dashInv)
-
-	// // test = append(test, totalResult)
 }
 
 func ProdSoldPerHour(w http.ResponseWriter, r *http.Request) {
