@@ -33,6 +33,17 @@ type InvDashboard struct {
 }
 
 func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
 	// DB connection
 	Db, err := connectDB.ConfirmDbExists()
 	if err != nil {
@@ -44,6 +55,11 @@ func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 	inventory := []model.Inventory{}
 	for i := 0; i < 100; i++ {
 		inventory = append(inventory, GenerateDataForInv())
+	}
+
+	for _, v := range inventory {
+		test, _ := bson.Marshal(v)
+		log.Println(test)
 	}
 
 	for _, val := range inventory {
@@ -63,7 +79,64 @@ func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func SearchOneTime(req []byte) *[]model.Inventory {
+	Db, err := connectDB.ConfirmDbExists()
+	if err != nil {
+		err = errors.Wrap(err, "Mongo client unable to connect")
+		log.Println(err)
+		return nil
+	}
+
+	searchInv := InvSearch{}
+
+	var findResults []interface{}
+	log.Println(findResults)
+
+	err = json.Unmarshal(req, &searchInv)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+		log.Println(err)
+		return nil
+	}
+
+	log.Println(searchInv, "************************")
+
+	findResults2, err := Db.Collection.Find(map[string]interface{}{
+
+		"timestamp": map[string]int64{
+			"$lt": searchInv.EndDate,
+		},
+	})
+	if err != nil {
+		err = errors.Wrap(err, "Error while fetching product.")
+		log.Println(err)
+		return nil
+	}
+	log.Println(findResults2)
+
+	inventory := []model.Inventory{}
+
+	for _, v := range findResults {
+		resultInv := v.(*model.Inventory)
+		inventory = append(inventory, *resultInv)
+	}
+
+	return &inventory
+}
+
 func LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
+
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -71,20 +144,69 @@ func LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inventory := SearchBtwTimeRange(body) //Just need max time
+	log.Println(string(body))
 
-	if len(*inventory) > 0 {
-		invJSON, err := json.Marshal(inventory)
-		if err != nil {
-			err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
-			log.Println(err)
-			return
-		}
-		w.Write(invJSON)
+	// inventory := SearchBtwTimeRange(body) //Just need max time
+	inventory := SearchOneTime(body)
+
+	table := []model.Inventory{}
+	for _, v := range *inventory {
+		table = append(table, model.Inventory{
+			ItemID:       v.ItemID,
+			Name:         v.Name,
+			Origin:       v.Origin,
+			DeviceID:     v.DeviceID,
+			TotalWeight:  v.TotalWeight,
+			Price:        v.Price,
+			Location:     v.Location,
+			DateArrived:  v.DateArrived,
+			ExpiryDate:   v.ExpiryDate,
+			Timestamp:    v.Timestamp,
+			RsCustomerID: v.RsCustomerID,
+			WasteWeight:  v.WasteWeight,
+			DonateWeight: v.DonateWeight,
+			DateSold:     v.DateSold,
+			SalePrice:    v.SalePrice,
+			SoldWeight:   v.SoldWeight,
+		})
+
+		log.Println(table)
 	}
+
+	totalResult, err := json.Marshal(&table)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to create response body")
+		log.Println(err)
+		return
+	}
+
+	// if len(*inventory) > 0 {
+	// 	for _, v := range inventory {
+	// 		invJSON, err := json.Marshal(inventory)
+	// 		if err != nil {
+	// 			err = errors.Wrap(err, "Unable to marshal foodItem into Inventory struct")
+	// 			log.Println(err)
+	// 			return
+	// 		}
+	// 	}
+
+	// 	w.Write(invJSON)
+	// }
+	w.Write(totalResult)
 }
 
 func SearchInvTable(w http.ResponseWriter, r *http.Request) {
+
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -114,7 +236,7 @@ func SearchInvTable(w http.ResponseWriter, r *http.Request) {
 
 	log.Println(search)
 
-	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+	findResults, err := Db.Collection.Find(map[string]interface{}{
 
 		search.SearchKey: map[string]*string{
 			"$eq": &search.SearchVal,
@@ -144,6 +266,17 @@ func SearchInvTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddInventory(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -162,7 +295,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	log.Println(string(body))
 
 	//Convert body of type []byte into type []model.Inventory{}
-	inventory := []model.Inventory{}
+	inventory := model.Inventory{}
 	err = json.Unmarshal(body, &inventory)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
@@ -170,22 +303,54 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, val := range inventory {
-		if val.ItemID.String() != "" { //need to change this
-			val.Timestamp = time.Now().Unix()
-			log.Println(val.ItemID)
-			insertResult, err := Db.Collection.InsertOne(val)
-			if err != nil {
-				err = errors.Wrap(err, "Unable to insert event")
-				log.Println(err)
-				return
-			}
-			log.Println(insertResult)
+	if inventory.ItemID.String() != "" { //need to change this
+		inventory.Timestamp = time.Now().Unix()
+		log.Println(inventory.ItemID)
+		insertResult, err := Db.Collection.InsertOne(inventory)
+		if err != nil {
+			err = errors.Wrap(err, "Unable to insert - AddInventory")
+			log.Println(err)
+			return
 		}
+		log.Println(insertResult)
 	}
+
+	// //Convert body of type []byte into type []model.Inventory{}
+	// inventory := []model.Inventory{}
+	// err = json.Unmarshal(body, &inventory)
+	// if err != nil {
+	// 	err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
+	// 	log.Println(err)
+	// 	return
+	// }
+
+	// for _, val := range inventory {
+	// 	if val.ItemID.String() != "" { //need to change this
+	// 		val.Timestamp = time.Now().Unix()
+	// 		log.Println(val.ItemID)
+	// 		insertResult, err := Db.Collection.InsertOne(val)
+	// 		if err != nil {
+	// 			err = errors.Wrap(err, "Unable to insert event")
+	// 			log.Println(err)
+	// 			return
+	// 		}
+	// 		log.Println(insertResult)
+	// 	}
+	// }
 }
 
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -248,6 +413,17 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteInventory(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
 	var delCount int64
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -296,6 +472,17 @@ func DeleteInventory(w http.ResponseWriter, r *http.Request) {
 
 //need end and start time (start in days)
 func TimeSearchInTable(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
@@ -330,7 +517,7 @@ func SearchBtwTimeRange(req []byte) *[]model.Inventory {
 	searchInv := []InvSearch{}
 
 	var findResults []interface{}
-
+	log.Println(findResults)
 	err = json.Unmarshal(req, &searchInv)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal foodItem into Inventory struct")
@@ -339,11 +526,11 @@ func SearchBtwTimeRange(req []byte) *[]model.Inventory {
 	}
 
 	for _, searchVal := range searchInv {
-		findResults, err = Db.Collection.FindMap(map[string]interface{}{
+		findResults, err = Db.Collection.Find(map[string]interface{}{
 
-			"timestamp": map[string]*int64{
-				"$lt": &searchVal.EndDate,
-				"$gt": &searchVal.StartDate,
+			"timestamp": map[string]int64{
+				"$lt": searchVal.EndDate,
+				"$gt": searchVal.StartDate,
 			},
 		})
 		if err != nil {
@@ -359,7 +546,6 @@ func SearchBtwTimeRange(req []byte) *[]model.Inventory {
 		resultInv := v.(*model.Inventory)
 		inventory = append(inventory, *resultInv)
 	}
-
 	return &inventory
 }
 
@@ -396,15 +582,17 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Get list of inventory from SearchDay
-	inventory := SearchBtwTimeRange(body) //Just need max time
+	inventory := *SearchBtwTimeRange(body) //Just need max time
+	log.Println(inventory)
 
-	if inventory == nil {
+	// log.Printf("%+v", inventory[0])
+	if len(inventory) == 0 {
 		log.Println(errors.New("Unable to get anything back from SearchWithTime function"))
-		w.WriteHeader(http.StatusInternalServerError)
+		// w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	for _, v := range *inventory {
+	for _, v := range inventory {
 		totalWeight = v.TotalWeight + totalWeight
 		tweight = append(tweight, totalWeight)
 
@@ -430,6 +618,7 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 	var totalResult []byte
 
 	dash := make(map[int]InvDashboard)
+	// dash := []InvDashboard{}
 	for i, v := range invSearch {
 
 		dash[i] = InvDashboard{
@@ -492,7 +681,7 @@ func TotalWeightSoldWasteDonatePerDay(w http.ResponseWriter, r *http.Request) {
 	// // test = append(test, totalResult)
 }
 
-func ProdSoldPerDay(w http.ResponseWriter, r *http.Request) {
+func ProdSoldPerHour(w http.ResponseWriter, r *http.Request) {
 	if origin := r.Header.Get("Origin"); origin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
@@ -564,6 +753,17 @@ func ProdSoldPerDay(w http.ResponseWriter, r *http.Request) {
 
 //Need end time
 func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
 	Db, err := connectDB.ConfirmDbExists()
 	if err != nil {
 		err = errors.Wrap(err, "Mongo client unable to connect")
@@ -637,7 +837,7 @@ func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
 // 		if searchVal.TimeInHours != 0 {
 // 			startTime := searchVal.MaxTime - 3600
 
-// 			findResults, err = Db.Collection.FindMap(map[string]interface{}{
+// 			findResults, err = Db.Collection.Find(map[string]interface{}{
 
 // 				"timestamp": map[string]*int64{
 // 					"$lt": &searchVal.MaxTime,
@@ -695,7 +895,7 @@ func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
 // 	endTime := time.Unix(searchInv.MaxTime, 0)
 // 	startTime := endTime.AddDate(0, 0, -(int(searchInv.TimePeriodInDays))).Unix()
 
-// 	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+// 	findResults, err := Db.Collection.Find(map[string]interface{}{
 
 // 		"timestamp": map[string]*int64{
 // 			"$lt": &searchInv.MaxTime,
@@ -776,7 +976,7 @@ func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
 // 		return
 // 	}
 
-// 	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+// 	findResults, err := Db.Collection.Find(map[string]interface{}{
 
 // 		"timestamp": map[string]*int64{
 // 			"$lt": &searchInv.MaxTime,
@@ -825,7 +1025,7 @@ func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
 
 // 	//here we need to send one hour, weekly, monthly
 
-// 	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+// 	findResults, err := Db.Collection.Find(map[string]interface{}{
 
 // 		"timestamp": map[string]*int64{
 // 			"$lte": &searchInv.MaxTime,
@@ -874,7 +1074,7 @@ func DistributionByWeight(w http.ResponseWriter, r *http.Request) {
 
 // // 	//here we need to send one hour, weekly, monthly
 
-// // 	findResults, err := Db.Collection.FindMap(map[string]interface{}{
+// // 	findResults, err := Db.Collection.Find(map[string]interface{}{
 
 // // 		"timestamp": map[string]*int64{
 // // 			"$lte": &searchInv.MaxTime,

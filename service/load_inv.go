@@ -49,9 +49,9 @@ var provinceNames = []string{"ON Canada", "BC Canada", "SK Canada", "MN Canada",
 func GenerateDataForInv() model.Inventory {
 
 	randNameAndLocation := generateRandomValue(1, 10)
-	randOrigin := generateRandomValue(1, 6)
+	randOrigin := generateRandomValue(1, 4)
 	randDateArr := generateRandomValue(1, 7)                          //in hours
-	randTimestamp := generateRandomValue(randDateArr, randDateArr+7)  //in hours
+	randTimestamp := generateRandomValue(randDateArr, randDateArr+2)  //in hours
 	randExpiry := generateRandomValue(int((randTimestamp/24)+1), 21)  //in days
 	randDatesold := generateRandomValue(randTimestamp, randExpiry*24) //in hours
 	randPrice := generateRandomValue(5000, 10000)

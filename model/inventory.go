@@ -1,6 +1,9 @@
 package model
 
 import (
+	"encoding/json"
+	"log"
+
 	"github.com/TerrexTech/uuuid"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
@@ -52,7 +55,44 @@ type marshalInventory struct {
 	SoldWeight       float64           `bson:"sale_weight,omitempty" json:"sale_weight,omitempty"`
 }
 
-func (i *Inventory) MarshalBSON() ([]byte, error) {
+func (i *Inventory) MarshalJSON() ([]byte, error) {
+	log.Println("}}}}}}}}}}}}}}}}}}}}}}}}}}")
+	log.Println(i)
+	in := &marshalInventory{
+		Name:             i.Name,
+		Origin:           i.Origin,
+		TotalWeight:      i.TotalWeight,
+		Price:            i.Price,
+		Location:         i.Location,
+		DateArrived:      i.DateArrived,
+		ExpiryDate:       i.ExpiryDate,
+		Timestamp:        i.Timestamp,
+		WasteWeight:      i.WasteWeight,
+		DonateWeight:     i.DonateWeight,
+		AggregateVersion: i.AggregateVersion,
+		AggregateID:      i.AggregateID,
+		DateSold:         i.DateSold,
+		SalePrice:        i.SalePrice,
+		SoldWeight:       i.SoldWeight,
+	}
+
+	if i.ItemID.String() != (uuuid.UUID{}).String() {
+		in.ItemID = i.ItemID.String()
+	}
+	if i.DeviceID.String() != (uuuid.UUID{}).String() {
+		in.DeviceID = i.DeviceID.String()
+	}
+	if i.RsCustomerID.String() != (uuuid.UUID{}).String() {
+		in.RsCustomerID = i.RsCustomerID.String()
+	}
+	e, _ := json.Marshal(in)
+	log.Println(string(e))
+
+	return json.Marshal(in)
+}
+
+func (i Inventory) MarshalBSON() ([]byte, error) {
+	log.Println("222222222222222222222222222222")
 	in := &marshalInventory{
 		Name:             i.Name,
 		Origin:           i.Origin,
@@ -84,7 +124,7 @@ func (i *Inventory) MarshalBSON() ([]byte, error) {
 	return bson.Marshal(in)
 }
 
-func (i *Inventory) UnmarshalJSON(in []byte) error {
+func (i *Inventory) UnmarshalBSON(in []byte) error {
 	m := make(map[string]interface{})
 	err := bson.Unmarshal(in, m)
 	if err != nil {
@@ -121,11 +161,72 @@ func (i *Inventory) UnmarshalJSON(in []byte) error {
 	i.Timestamp = m["timestamp"].(int64)
 	i.WasteWeight = m["waste_weight"].(float64)
 	i.DonateWeight = m["donate_weight"].(float64)
-	i.AggregateVersion = m["aggregate_version"].(int64)
-	i.AggregateID = m["aggregate_id"].(int8)
+	if m["aggregate_version"] != nil {
+		i.AggregateVersion = m["aggregate_version"].(int64)
+	}
+	if m["aggregate_id"] != nil {
+		// i.AggregateID = m["aggregate_id"].(int8)
+	}
 	i.DateSold = m["date_sold"].(int64)
 	i.SalePrice = m["sale_price"].(float64)
-	i.SoldWeight = m["sold_weight"].(float64)
+	if m["sold_weight"] != nil {
+		i.SoldWeight = m["sold_weight"].(float64)
+	}
+	return nil
+}
+
+func (i *Inventory) UnmarshalJSON(in []byte) error {
+	m := make(map[string]interface{})
+	err := bson.Unmarshal(in, m)
+	if err != nil {
+		err = errors.Wrap(err, "Unmarshal Error")
+		return err
+	}
+
+	i.ID = m["_id"].(objectid.ObjectID)
+
+	i.ItemID, err = uuuid.FromString(m["item_id"].(string))
+	if err != nil {
+		err = errors.Wrap(err, "Error parsing ItemID for inventory")
+		return err
+	}
+
+	i.DeviceID, err = uuuid.FromString(m["device_id"].(string))
+	if err != nil {
+		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
+		return err
+	}
+
+	i.RsCustomerID, err = uuuid.FromString(m["rs_customer_id"].(string))
+	if err != nil {
+		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
+		return err
+	}
+	var ok bool
+	i.Name = m["name"].(string)
+	i.Origin = m["origin"].(string)
+	i.TotalWeight = m["total_weight"].(float64)
+	i.Price, ok = m["price"].(float64)
+	if !ok {
+		log.Println("Error converting price to float64")
+	}
+	i.Location = m["location"].(string)
+	i.DateArrived = m["date_arrived"].(int64)
+	i.ExpiryDate = m["expiry_date"].(int64)
+	i.Timestamp = m["timestamp"].(int64)
+	i.WasteWeight = m["waste_weight"].(float64)
+	i.DonateWeight = m["donate_weight"].(float64)
+	if m["aggregate_version"] != nil {
+		i.AggregateVersion = m["aggregate_version"].(int64)
+	}
+	if m["aggregate_id"] != nil {
+		// i.AggregateID = m["aggregate_id"].(int8)
+	}
+	i.DateSold = m["date_sold"].(int64)
+	i.SalePrice = m["sale_price"].(float64)
+	if m["sold_weight"] != nil {
+		i.SoldWeight = m["sold_weight"].(float64)
+	}
 
 	return nil
 }
