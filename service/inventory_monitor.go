@@ -58,7 +58,12 @@ func LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, v := range inventory {
-		test, _ := bson.Marshal(v)
+		test, err := bson.Marshal(v)
+		if err != nil {
+			err = errors.Wrap(err, "Unable to marshal bson - LoadDataInMongo")
+			log.Println(err)
+			return
+		}
 		log.Println(test)
 	}
 
@@ -340,7 +345,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		ItemID: inventory.ItemID,
 	}
 
-	//Confirm that uuid is not empty
+	//Confirm that fields are not empty
 	if inventory.ItemID.String() == "" {
 		log.Println("UUID is empty")
 		return
@@ -463,7 +468,7 @@ func DeleteInventory(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if deleteResult.DeletedCount > 0 {
-			delCount++
+			delCount = delCount + 1
 		}
 	}
 	w.Write([]byte(("Deleted: ") + string(delCount)))

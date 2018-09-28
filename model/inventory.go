@@ -125,6 +125,8 @@ func (i Inventory) MarshalBSON() ([]byte, error) {
 }
 
 func (i *Inventory) UnmarshalBSON(in []byte) error {
+	var ok bool
+
 	m := make(map[string]interface{})
 	err := bson.Unmarshal(in, m)
 	if err != nil {
@@ -183,7 +185,7 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 	if m["location"] != nil {
 		i.Location = m["location"].(string)
 	}
-	var ok bool
+
 	if m["date_arrived"] != nil {
 		i.DateArrived, ok = m["date_arrived"].(int64)
 		if !ok {
@@ -194,21 +196,21 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 	if m["expiry_date"] != nil {
 		i.ExpiryDate, ok = m["expiry_date"].(int64)
 		if !ok {
-			i.DateArrived = int64(m["expiry_date"].(float64))
+			i.ExpiryDate = int64(m["expiry_date"].(float64))
 		}
 	}
 
 	if m["timestamp"] != nil {
 		i.Timestamp, ok = m["timestamp"].(int64)
 		if !ok {
-			i.DateArrived = int64(m["timestamp"].(float64))
+			i.Timestamp = int64(m["timestamp"].(float64))
 		}
 	}
 
 	if m["date_sold"] != nil {
 		i.DateSold, ok = m["date_sold"].(int64)
 		if !ok {
-			i.DateArrived = int64(m["date_sold"].(float64))
+			i.DateSold = int64(m["date_sold"].(float64))
 		}
 	}
 
@@ -252,26 +254,26 @@ func (i *Inventory) UnmarshalJSON(in []byte) error {
 
 	if m["item_id"] != nil {
 		i.ItemID, err = uuuid.FromString(m["item_id"].(string))
-	}
-	if err != nil {
-		err = errors.Wrap(err, "Error parsing ItemID for inventory")
-		return err
+		if err != nil {
+			err = errors.Wrap(err, "Error parsing ItemID for inventory")
+			return err
+		}
 	}
 
 	if m["device_id"] != nil {
 		i.DeviceID, err = uuuid.FromString(m["device_id"].(string))
-	}
-	if err != nil {
-		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
-		return err
+		if err != nil {
+			err = errors.Wrap(err, "Error parsing DeviceID for inventory")
+			return err
+		}
 	}
 
 	if m["rs_customer_id"] != nil {
 		i.RsCustomerID, err = uuuid.FromString(m["rs_customer_id"].(string))
-	}
-	if err != nil {
-		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
-		return err
+		if err != nil {
+			err = errors.Wrap(err, "Error parsing DeviceID for inventory")
+			return err
+		}
 	}
 
 	if m["name"] != nil {

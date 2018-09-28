@@ -29,7 +29,7 @@ func setAuthenticationRoute(router *mux.Router) *mux.Router {
 	router.HandleFunc("/update-product", service.UpdateInventory).Methods("POST", "OPTIONS")
 	router.HandleFunc("/delete-product", service.DeleteInventory).Methods("POST", "OPTIONS")
 	router.HandleFunc("/search-range", service.TimeSearchInTable).Methods("POST", "OPTIONS")
-	router.HandleFunc("/create-data", service.LoadDataInMongo).Methods("GET")
+	router.HandleFunc("/create-data", service.LoadDataInMongo).Methods("GET", "OPTIONS")
 	router.HandleFunc("/load-table", service.LoadInventoryTable).Methods("POST", "OPTIONS")
 	router.HandleFunc("/dist-weight", service.DistributionByWeight).Methods("GET", "OPTIONS")
 	router.HandleFunc("/twsalewaste", service.TotalWeightSoldWasteDonatePerDay).Methods("POST", "OPTIONS")
