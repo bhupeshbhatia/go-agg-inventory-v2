@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
-	"github.com/bhupeshbhatia/go-agg-inventory-v2/service"
+	"github.com/TerrexTech/go-commonutils/commonutil"
+
+	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
@@ -14,28 +18,32 @@ import (
 
 const AGGREGATE_ID = 2
 
+type Env struct {
+	inv model.Datastore
+}
+
 func ErrorStackTrace(err error) string {
 	return fmt.Sprintf("%+v\n", err)
 }
 
-func initRoutes() *mux.Router {
-	router := mux.NewRouter()
-	router = setAuthenticationRoute(router)
-	return router
-}
+// func initRoutes() *mux.Router {
+// 	router := mux.NewRouter()
+// 	router = setAuthenticationRoute(router)
+// 	return router
+// }
 
-func setAuthenticationRoute(router *mux.Router) *mux.Router {
-	router.HandleFunc("/add-product", service.AddInventory).Methods("POST", "OPTIONS")
-	router.HandleFunc("/update-product", service.UpdateInventory).Methods("POST", "OPTIONS")
-	router.HandleFunc("/delete-product", service.DeleteInventory).Methods("POST", "OPTIONS")
-	router.HandleFunc("/search-range", service.TimeSearchInTable).Methods("POST", "OPTIONS")
-	router.HandleFunc("/create-data", service.LoadDataInMongo).Methods("GET", "OPTIONS")
-	router.HandleFunc("/load-table", service.LoadInventoryTable).Methods("POST", "OPTIONS")
-	router.HandleFunc("/dist-weight", service.DistributionByWeight).Methods("GET", "OPTIONS")
-	router.HandleFunc("/twsalewaste", service.TotalWeightSoldWasteDonatePerDay).Methods("POST", "OPTIONS")
-	router.HandleFunc("/search-table", service.SearchInvTable).Methods("POST", "OPTIONS")
+func setAuthenticationRoute(router *mux.Router, env *Env) *mux.Router {
+	// router.HandleFunc("/add-product", service.AddInventory).Methods("POST", "OPTIONS")
+	// router.HandleFunc("/update-product", service.UpdateInventory).Methods("POST", "OPTIONS")
+	// router.HandleFunc("/delete-product", service.DeleteInventory).Methods("POST", "OPTIONS")
+	// router.HandleFunc("/search-range", service.TimeSearchInTable).Methods("POST", "OPTIONS")
+	router.HandleFunc("/create-data", env.LoadDataInMongo).Methods("GET", "OPTIONS")
+	router.HandleFunc("/load-table", env.LoadInventoryTable).Methods("POST", "OPTIONS")
+	// router.HandleFunc("/dist-weight", service.DistributionByWeight).Methods("GET", "OPTIONS")
+	// router.HandleFunc("/twsalewaste", service.TotalWeightSoldWasteDonatePerDay).Methods("POST", "OPTIONS")
+	// router.HandleFunc("/search-table", service.SearchInvTable).Methods("POST", "OPTIONS")
 
-	router.HandleFunc("/perhr-sale", service.ProdSoldPerHour).Methods("POST", "OPTIONS")
+	// router.HandleFunc("/perhr-sale", service.ProdSoldPerHour).Methods("POST", "OPTIONS")
 
 	return router
 }
@@ -49,17 +57,97 @@ func main() {
 		log.Println(err)
 	}
 
-	// headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
-	// originsOk := handlers.AllowedOrigins([]string{("ORIGIN_ALLOWED")})
-	// methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
+	missingVar, err := commonutil.ValidateEnv(
+		"MONGO_HOSTS",
+		"MONGO_DATABASE",
+		"MONGO_COLLECTION",
+		// "MONGO_TIMEOUT",
+	)
+	if err != nil {
+		log.Fatalf(
+			"Error: Environment variable %s is required but was not found", missingVar,
+		)
+	}
 
-	// service.GetProductCount()
+	hosts := os.Getenv("MONGO_HOSTS")
+	username := os.Getenv("MONGO_USERNAME")
+	password := os.Getenv("MONGO_PASSWORD")
+	database := os.Getenv("MONGO_DATABASE")
+	collection := os.Getenv("MONGO_COLLECTION")
 
-	router := initRoutes()
+	config := model.DbConfig{
+		Hosts:      *commonutil.ParseHosts(hosts),
+		Username:   username,
+		Password:   password,
+		Database:   database,
+		Collection: collection,
+	}
+
+	//Db IO
+	db, err := model.ConfirmDbExists(config)
+	if err != nil {
+		err = errors.Wrap(err, "Error connecting to Inventory DB")
+		log.Println(err)
+		return
+	}
+
+	//This Env is in file route_handlers.go
+	env := &Env{db}
+
+	router := mux.NewRouter()
+	router = setAuthenticationRoute(router, env)
+
 	n := negroni.Classic()
 	n.UseHandler(router)
-	// http.ListenAndServe(":8080", handlers.CORS(originsOk, headersOk, methodsOk)(n))
+
 	http.ListenAndServe(":8080", n)
+}
+
+func (env *Env) LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	// DB connection
+	insertedData, err := env.db.CreateDataMongo()
+	if err != nil {
+		err = errors.Wrap(err, "Unable to create new data in mongo")
+		log.Println(err)
+		return
+	}
+	w.Write(insertedData)
+}
+
+func (env *Env) LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
+
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	totalResult, err := env.inv.PopulateInvTable(body)
+
+	w.Write(totalResult)
 }
 
 //----------------------------------------------------------

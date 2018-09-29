@@ -140,6 +140,8 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 
 	// log.Println((m["item_id"].(map[string]interface{}))["uuid"])
 
+
+
 	if m["item_id"] != nil {
 		i.ItemID, err = uuuid.FromString(m["item_id"].(string))
 	}

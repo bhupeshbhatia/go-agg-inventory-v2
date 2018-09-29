@@ -8,8 +8,21 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Datastore interface {
+	CreateDataMongo()
+}
+
 type Db struct {
 	Collection *mongo.Collection
+}
+
+type DbConfig struct {
+	Hosts               []string
+	Username            string
+	Password            string
+	TimeoutMilliseconds uint32
+	Database            string
+	Collection          string
 }
 
 func ConfirmDbExists() (*Db, error) {
@@ -66,7 +79,6 @@ func ConfirmDbExists() (*Db, error) {
 		return nil, err
 	}
 
-	
 	return &Db{
 		Collection: c,
 	}, nil

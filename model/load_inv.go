@@ -1,4 +1,4 @@
-package service
+package model
 
 import (
 	"encoding/json"
@@ -8,8 +8,6 @@ import (
 
 	"github.com/TerrexTech/uuuid"
 	"github.com/pkg/errors"
-
-	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
 )
 
 func init() {
@@ -17,7 +15,7 @@ func init() {
 }
 
 type ModifyInvData struct {
-	Inv        model.Inventory
+	Inv        Inventory
 	Datearr    int64
 	Expirydate int64
 	Timestamp  int64
@@ -46,7 +44,7 @@ var productsName = []string{"Banana", "Orange", "Apple", "Mango", "Strawberry", 
 var locationName = []string{"A101", "B201", "O301", "M401", "S501", "T601", "L701", "P801", "G901", "SW1001"}
 var provinceNames = []string{"ON Canada", "BC Canada", "SK Canada", "MN Canada", "NS Canada", "PEI Canada", "QC Canada"}
 
-func GenerateDataForInv() model.Inventory {
+func GenerateDataForInv() Inventory {
 
 	randNameAndLocation := generateRandomValue(1, 10)
 	randOrigin := generateRandomValue(1, 6)
@@ -58,7 +56,7 @@ func GenerateDataForInv() model.Inventory {
 	randTotalWeight := generateRandomValue(100, 300)
 	randWasteWeight := generateRandomValue(1, 80)
 
-	inventory := model.Inventory{
+	inventory := Inventory{
 		ItemID:       generateNewUUID(),
 		RsCustomerID: generateNewUUID(),
 		DeviceID:     generateNewUUID(),
@@ -84,7 +82,7 @@ func GenerateDataForInv() model.Inventory {
 }
 
 func TestIfDataGenerated() {
-	inventory := []model.Inventory{}
+	inventory := []Inventory{}
 	for i := 0; i < 100; i++ {
 		inventory = append(inventory, GenerateDataForInv())
 	}
@@ -96,11 +94,11 @@ func TestIfDataGenerated() {
 	log.Println(jsonWithInvData)
 }
 
-// func GetProdAndTotalWeight(prodName string, inventory model.Inventory) (float64, float64) {
+// func GetProdAndTotalWeight(prodName string, inventory Inventory) (float64, float64) {
 // 	// productWeight := 0
 // 	// totalWeight := 0
 // 	var productWeight, totalWeight float64
-// 	// inventory := []model.Inventory{}
+// 	// inventory := []Inventory{}
 // 	// for i := 0; i < 100; i++ {
 // 	// 	inventory = append(inventory, GenerateDataForInv())
 // 	// }
@@ -141,7 +139,7 @@ func TestIfDataGenerated() {
 // 		log.Println(err)
 // 	}
 
-// 	inventory := []model.Inventory{}
+// 	inventory := []Inventory{}
 // 	err = json.NewDecoder(strings.NewReader(string(data))).Decode(&inventory)
 // 	// err = json.Unmarshal(data, &inventory)
 // 	if err != nil {
@@ -225,7 +223,7 @@ func TestIfDataGenerated() {
 // 	}
 // }
 
-// func ChangesInitialData(modify ModifyInvData) model.Inventory {
+// func ChangesInitialData(modify ModifyInvData) Inventory {
 // 	inventory.DateArrived = time.Now().Unix() + modify.Datearr
 // 	inventory.ExpiryDate = time.Now().AddDate(0, 0, modify.Expirydate).Unix()
 // 	inventory.Timestamp = time.Now().Unix() + modify.Timestamp
