@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"reflect"
 	"strconv"
 	"time"
 
 	mongo "github.com/TerrexTech/go-mongoutils/mongo"
 	"github.com/mongodb/mongo-go-driver/bson"
+	mgo "github.com/mongodb/mongo-go-driver/mongo"
 	"github.com/pkg/errors"
 )
 
@@ -16,12 +18,12 @@ type Datastore interface {
 	Collection() *mongo.Collection
 	CreateDataMongo() ([]byte, error)
 	SearchDb(body []byte) ([]byte, error)
-	AddInventory(body []byte) error
-	UpdateInventory(body []byte) (interface{}, error)
+	AddInventory(body []byte) ([]byte, error)
+	UpdateInventory(body []byte) (*mgo.UpdateResult, error)
 	DeleteInventory(body []byte) ([]byte, error)
-	CompareInvGraph(body []byte) ([]byte, error)
-	ProdSoldPerHour(body []byte) ([]byte, error)
-	DistByWeight(body []byte) ([]byte, error)
+	CompareInvGraph(toSearch []byte, invResultsAfterSearch []byte) ([]byte, error)
+	ProdSoldPerHour(toSearch []byte, invResultsAfterSearch []byte) ([]byte, error)
+	DistByWeight() ([]byte, error)
 }
 
 type Db struct {
@@ -39,10 +41,71 @@ type DbConfig struct {
 
 //===============================================
 type InvSearch struct {
-	EndDate   int64  `bson:"end_date,omitempty" json:"end_date,omitempty"`
-	StartDate int64  `bson:"start_date,omitempty" json:"start_date,omitempty"`
-	SearchKey string `bson:"search_key,omitempty" json:"search_key,omitempty"`
-	SearchVal string `bson:"search_val,omitempty" json:"search_val,omitempty"`
+	EndDate   int64       `bson:"end_date,omitempty" json:"end_date,omitempty"`
+	StartDate int64       `bson:"start_date,omitempty" json:"start_date,omitempty"`
+	SearchKey string      `bson:"search_key,omitempty" json:"search_key,omitempty"`
+	SearchVal interface{} `bson:"search_val,omitempty" json:"search_val,omitempty"`
+}
+
+func (i *InvSearch) UnmarshalJSON(search []byte) error {
+	m := make(map[string]interface{})
+	err := json.Unmarshal(search, &m)
+	if err != nil {
+		err = errors.Wrap(err, "Unmarshal Error")
+		return err
+	}
+
+	if m["search_key"] != nil {
+		i.SearchKey = m["search_key"].(string)
+	}
+
+	test := reflect.TypeOf(m["search_val"]).Kind()
+	log.Println(test)
+
+	if i.SearchKey == "name" || i.SearchKey == "origin" || i.SearchKey == "location" {
+		searchType := reflect.TypeOf(m["search_val"]).Kind()
+		if m["search_val"] != nil && searchType == reflect.String {
+			i.SearchVal = m["search_val"].(string)
+		}
+	}
+
+	if i.SearchKey == "upc" || i.SearchKey == "sku" || i.SearchKey == "arrival_date" || i.SearchKey == "expiry_date" {
+		searchType := reflect.TypeOf(m["search_val"]).Kind()
+		if m["search_val"] != nil && searchType != reflect.Int64 {
+			val, err := strconv.Atoi((m["search_val"]).(string))
+			if err != nil {
+				err = errors.Wrap(err, "Cannot convert search_val to Int64s - UnmarshalJSON - InvSearch")
+				return err
+			}
+			i.SearchVal = int64(val)
+		}
+	}
+
+	if i.SearchKey == "sale_price" || i.SearchKey == "sold_weight" {
+		searchType := reflect.TypeOf(m["search_val"]).Kind()
+		if m["search_val"] != nil && searchType != reflect.Float64 {
+			val, err := strconv.ParseFloat((m["search_val"]).(string), 64)
+			if err != nil {
+				err = errors.Wrap(err, "Cannot convert search_val to Float64 - UnmarshalJSON - InvSearch")
+				return err
+			}
+			i.SearchVal = val
+		}
+	}
+
+	// if m["name"] != nil {
+	// 	i.Name = m["name"].(string)
+	// }
+
+	// if m["origin"] != nil {
+	// 	i.Origin = m["origin"].(string)
+	// }
+
+	// if m["location"] != nil {
+	// 	i.Location = m["location"].(string)
+	// }
+
+	return nil
 }
 
 type InvDashboard struct {
@@ -77,18 +140,18 @@ func ConfirmDbExists(dbConfig DbConfig) (*Db, error) {
 	}
 
 	// Index Configuration
-	// indexConfigs := []mongo.IndexConfig{
-	// 	mongo.IndexConfig{
-	// 		ColumnConfig: []mongo.IndexColumnConfig{
-	// 			mongo.IndexColumnConfig{
-	// 				Name:        "upc", ////CAN'T HAVE THIS AS UNIQUE
-	// 				IsDescOrder: false,
-	// 			},
-	// 		},
-	// 		IsUnique: true,
-	// 		Name:     "upc_index",
-	// 	},
-	// }
+	indexConfigs := []mongo.IndexConfig{
+		mongo.IndexConfig{
+			ColumnConfig: []mongo.IndexColumnConfig{
+				mongo.IndexColumnConfig{
+					Name:        "item_id", ////CAN'T HAVE THIS AS UNIQUE
+					IsDescOrder: false,
+				},
+			},
+			IsUnique: true,
+			Name:     "item_id_index",
+		},
+	}
 
 	// ====> Create New Collection
 	colConfig := &mongo.Collection{
@@ -96,7 +159,7 @@ func ConfirmDbExists(dbConfig DbConfig) (*Db, error) {
 		Name:         dbConfig.Collection,
 		Database:     dbConfig.Database,
 		SchemaStruct: &Inventory{},
-		// Indexes:      indexConfigs,
+		Indexes:      indexConfigs,
 	}
 	c, err := mongo.EnsureCollection(colConfig)
 	if err != nil {
@@ -117,7 +180,7 @@ func (d *Db) Collection() *mongo.Collection {
 
 func (db *Db) CreateDataMongo() ([]byte, error) {
 	newInventory := []Inventory{}
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 5; i++ {
 		newInventory = append(newInventory, GenerateDataForInv())
 	}
 
@@ -176,7 +239,7 @@ func (db *Db) SearchDb(body []byte) ([]byte, error) {
 			val.SearchKey != "" &&
 			val.SearchVal != "" {
 			findResults, err = db.collection.Find(map[string]interface{}{
-				val.SearchKey: map[string]*string{
+				val.SearchKey: map[string]interface{}{
 					"$eq": &val.SearchVal,
 				},
 			})
@@ -212,45 +275,55 @@ func (db *Db) SearchDb(body []byte) ([]byte, error) {
 	return totalResult, nil
 }
 
-func (db *Db) AddInventory(body []byte) error {
+func (db *Db) AddInventory(body []byte) ([]byte, error) {
+
+	// var insertResult *mgo.InsertOneResult
+	var insCount int
+
 	//Convert body of type []byte into type []model.Inventory{}
 	inventory := Inventory{}
 	err := json.Unmarshal(body, &inventory)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal AddInventory")
 		log.Println(err)
-		return err
+		return nil, err
 	}
 
-	// var insertResult *mgo.InsertOneResult
+	itemId := inventory.ItemID.String()
 
-	if inventory.UPC != 0 { //need to change this
+	if inventory.UPC != 0 && inventory.SKU != 0 && itemId != "" { //need to change this
 		inventory.Timestamp = time.Now().Unix()
 
 		insertResult, err := db.collection.InsertOne(inventory)
 		if err != nil {
 			err = errors.Wrap(err, "Unable to insert - AddInventory")
 			log.Println(err)
-			return err
+			return nil, err
 		}
 		log.Println("Addddddddddddd", insertResult)
+		insCount = insCount + 1
 	}
-	return nil
+
+	insCountStr := strconv.Itoa(insCount)
+	log.Println(insCountStr)
+	return []byte(insCountStr), nil
 }
 
-func (db *Db) UpdateInventory(body []byte) (interface{}, error) {
+func (db *Db) UpdateInventory(body []byte) (*mgo.UpdateResult, error) {
 	inventory := Inventory{}
-	// log.Println("^^^^^^^^^^^^^^^^", string(body))
+	log.Println("^^^^^^^^^^^^^^^^", string(body))
 	err := json.Unmarshal(body, &inventory)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal - UpdateInventory")
 		log.Println(err)
 		return nil, err
 	}
+	log.Println(inventory.DeviceID)
 
 	//Filter required for Update
 	filter := &Inventory{
 		SKU: inventory.SKU,
+		UPC: inventory.UPC,
 	}
 
 	if inventory.UPC == 0 {
@@ -308,7 +381,7 @@ func (db *Db) UpdateInventory(body []byte) (interface{}, error) {
 		"name":         inventory.Name,
 		"origin":       inventory.Origin,
 		"date_arrived": inventory.DateArrived,
-		"device_id":    inventory.DeviceID,
+		"device_id":    inventory.DeviceID.String(),
 		"price":        inventory.Price,
 		"total_weight": inventory.TotalWeight,
 		"location":     inventory.Location,
@@ -355,7 +428,7 @@ func (db *Db) DeleteInventory(body []byte) ([]byte, error) {
 	return []byte(count), nil
 }
 
-func (db *Db) CompareInvGraph(body []byte) ([]byte, error) {
+func (db *Db) CompareInvGraph(toSearch []byte, invResultsAfterSearch []byte) ([]byte, error) {
 	var totalWeight float64
 	var soldWeight float64
 	var wasteWeight float64
@@ -366,16 +439,16 @@ func (db *Db) CompareInvGraph(body []byte) ([]byte, error) {
 	var wweight []float64
 	var dweight []float64
 
-	inventory := []Inventory{}
+	invDashGraph := []InvDashboard{}
 	//Convert body of type []byte into type []model.Inventory{}
-	err := json.Unmarshal(body, &inventory)
+	err := json.Unmarshal(invResultsAfterSearch, &invDashGraph)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal - CompareInvGraph")
 		log.Println(err)
 		return nil, err
 	}
 
-	for _, v := range inventory {
+	for _, v := range invDashGraph {
 		totalWeight = v.TotalWeight + totalWeight
 		tweight = append(tweight, totalWeight)
 
@@ -390,7 +463,8 @@ func (db *Db) CompareInvGraph(body []byte) ([]byte, error) {
 	}
 
 	invSearch := []InvSearch{}
-	err = json.Unmarshal(body, &invSearch)
+
+	err = json.Unmarshal(toSearch, &invSearch)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to Unmarshal timestamp from body - TwSaleWasteDonate")
 		log.Println(err)
@@ -422,26 +496,26 @@ func (db *Db) CompareInvGraph(body []byte) ([]byte, error) {
 	return totalResult, nil
 }
 
-func (db *Db) ProdSoldPerHour(body []byte) ([]byte, error) {
+func (db *Db) ProdSoldPerHour(toSearch []byte, invResultsAfterSearch []byte) ([]byte, error) {
 	var soldWeight float64
 	var sweight []float64
 
-	inventory := []Inventory{}
+	invProdGraph := []InvDashboard{}
 	//Convert body of type []byte into type []model.Inventory{}
-	err := json.Unmarshal(body, &inventory)
+	err := json.Unmarshal(invResultsAfterSearch, &invProdGraph)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal - ProdSoldPerHour")
 		log.Println(err)
 		return nil, err
 	}
 
-	for _, v := range inventory {
+	for _, v := range invProdGraph {
 		soldWeight = v.SoldWeight + soldWeight
 		sweight = append(sweight, soldWeight)
 	}
 
 	invSearch := []InvSearch{}
-	err = json.Unmarshal(body, &invSearch)
+	err = json.Unmarshal(toSearch, &invSearch)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to Unmarshal timestamp from body - TwSaleWasteDonate")
 		log.Println(err)
@@ -470,7 +544,7 @@ func (db *Db) ProdSoldPerHour(body []byte) ([]byte, error) {
 	return totalResult, nil
 }
 
-func (db *Db) DistByWeight(body []byte) ([]byte, error) {
+func (db *Db) DistByWeight() ([]byte, error) {
 	pipeline := bson.NewArray(
 		bson.VC.Document(
 			bson.NewDocument(

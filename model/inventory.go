@@ -13,6 +13,7 @@ import (
 
 type Inventory struct {
 	ID               objectid.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	ItemID           uuuid.UUID        `bson:"item_id,omitempty" json:"item_id,omitempty"`
 	UPC              int64             `bson:"upc,omitempty" json:"upc,omitempty"`
 	SKU              int64             `bson:"sku,omitempty" json:"sku,omitempty"`
 	Name             string            `bson:"name,omitempty" json:"name,omitempty"`
@@ -36,6 +37,7 @@ type Inventory struct {
 
 type marshalInventory struct {
 	ID               objectid.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	ItemID           string            `bson:"item_id,omitempty" json:"item_id,omitempty"`
 	UPC              int64             `bson:"upc,omitempty" json:"upc,omitempty"`
 	SKU              int64             `bson:"sku,omitempty" json:"sku,omitempty"`
 	Name             string            `bson:"name,omitempty" json:"name,omitempty"`
@@ -123,9 +125,9 @@ func (i *Inventory) MarshalJSON() ([]byte, error) {
 		SoldWeight:       i.SoldWeight,
 	}
 
-	// if i.ItemID.String() != (uuuid.UUID{}).String() {
-	// 	in.ItemID = i.ItemID.String()
-	// }
+	if i.ItemID.String() != (uuuid.UUID{}).String() {
+		in.ItemID = i.ItemID.String()
+	}
 	if i.DeviceID.String() != (uuuid.UUID{}).String() {
 		in.DeviceID = i.DeviceID.String()
 	}
@@ -159,9 +161,9 @@ func (i Inventory) MarshalBSON() ([]byte, error) {
 		SoldWeight:       i.SoldWeight,
 	}
 
-	// if i.ItemID.String() != (uuuid.UUID{}).String() {
-	// 	in.ItemID = i.ItemID.String()
-	// }
+	if i.ItemID.String() != (uuuid.UUID{}).String() {
+		in.ItemID = i.ItemID.String()
+	}
 
 	if i.DeviceID.String() != (uuuid.UUID{}).String() {
 		in.DeviceID = i.DeviceID.String()
@@ -189,13 +191,13 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 
 	// log.Println((m["item_id"].(map[string]interface{}))["uuid"])
 
-	// if m["item_id"] != nil {
-	// 	i.ItemID, err = uuuid.FromString(m["item_id"].(string))
-	// }
-	// if err != nil {
-	// 	err = errors.Wrap(err, "Error parsing ItemID for inventory")
-	// 	return err
-	// }
+	if m["item_id"] != nil {
+		i.ItemID, err = uuuid.FromString(m["item_id"].(string))
+		if err != nil {
+			err = errors.Wrap(err, "Error parsing ItemID for inventory")
+			return err
+		}
+	}
 
 	// if m["upc"] != nil {
 	// 	upcType := reflect.TypeOf(m["upc"])
@@ -243,17 +245,15 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 
 	if m["device_id"] != nil {
 		i.DeviceID, err = uuuid.FromString(m["device_id"].(string))
-	}
-
-	if err != nil {
-		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
-		return err
+		if err != nil {
+			err = errors.Wrap(err, "Error parsing DeviceID for inventory")
+			return err
+		}
 	}
 
 	if m["rs_customer_id"] != nil {
 		i.RsCustomerID, err = uuuid.FromString(m["rs_customer_id"].(string))
 	}
-
 	if err != nil {
 		err = errors.Wrap(err, "Error parsing DeviceID for inventory")
 		return err
@@ -452,13 +452,13 @@ func (i *Inventory) UnmarshalJSON(in []byte) error {
 		i.ID = m["_id"].(objectid.ObjectID)
 	}
 
-	// if m["item_id"] != nil {
-	// 	i.ItemID, err = uuuid.FromString(m["item_id"].(string))
-	// 	if err != nil {
-	// 		err = errors.Wrap(err, "Error parsing ItemID for inventory")
-	// 		return err
-	// 	}
-	// }
+	if m["item_id"] != nil {
+		i.ItemID, err = uuuid.FromString(m["item_id"].(string))
+		if err != nil {
+			err = errors.Wrap(err, "Error parsing ItemID for inventory")
+			return err
+		}
+	}
 
 	if m["upc"] != nil {
 		upcType := reflect.TypeOf(m["upc"]).Kind()

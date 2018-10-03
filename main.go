@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/TerrexTech/go-commonutils/commonutil"
 
@@ -105,6 +106,10 @@ func main() {
 	http.HandleFunc("/add-inv", env.AddInv)
 	http.HandleFunc("/up-inv", env.UpdateInv)
 	http.HandleFunc("/del-inv", env.DeleteInv)
+	http.HandleFunc("/total-inv", env.TotalGraph)
+	http.HandleFunc("/sold-inv", env.SoldPerHr)
+	http.HandleFunc("/dist-inv", env.DistWeight)
+	http.HandleFunc("/search-inv", env.SearchTable)
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -155,6 +160,35 @@ func (env *Env) LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
 	w.Write(totalResult)
 }
 
+func (env *Env) SearchTable(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	invAfterSearch, err := env.db.SearchDb(body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	w.Write(invAfterSearch)
+}
+
 func (env *Env) AddInv(w http.ResponseWriter, r *http.Request) {
 	if origin := r.Header.Get("Origin"); origin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
@@ -174,9 +208,15 @@ func (env *Env) AddInv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = env.db.AddInventory(body)
+	insertResult, err := env.db.AddInventory(body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to insert in inventory")
+		log.Println(err)
+		w.Write(insertResult)
+		return
+	}
 
-	// w.Write(insertResult)
+	w.Write(insertResult)
 }
 
 func (env *Env) UpdateInv(w http.ResponseWriter, r *http.Request) {
@@ -203,7 +243,9 @@ func (env *Env) UpdateInv(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	w.Write(updateResult.([]byte))
+	result := strconv.Itoa(int(updateResult.ModifiedCount))
+
+	w.Write([]byte(result))
 }
 
 func (env *Env) DeleteInv(w http.ResponseWriter, r *http.Request) {
@@ -252,14 +294,14 @@ func (env *Env) TotalGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inv, err := env.db.SearchDb(body)
+	invAfterSearch, err := env.db.SearchDb(body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
 		log.Println(err)
 		return
 	}
 
-	results, err := env.db.CompareInvGraph(inv)
+	results, err := env.db.CompareInvGraph(body, invAfterSearch)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -285,14 +327,14 @@ func (env *Env) SoldPerHr(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inv, err := env.db.SearchDb(body)
+	invAfterSearch, err := env.db.SearchDb(body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
 		log.Println(err)
 		return
 	}
 
-	results, err := env.db.ProdSoldPerHour(inv)
+	results, err := env.db.ProdSoldPerHour(body, invAfterSearch)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -311,14 +353,14 @@ func (env *Env) DistWeight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		err = errors.Wrap(err, "Unable to read the request body")
-		log.Println(err)
-		return
-	}
+	// body, err := ioutil.ReadAll(r.Body)
+	// if err != nil {
+	// 	err = errors.Wrap(err, "Unable to read the request body")
+	// 	log.Println(err)
+	// 	return
+	// }
 
-	results, err := env.db.DistByWeight(body)
+	results, err := env.db.DistByWeight()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}

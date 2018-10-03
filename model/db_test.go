@@ -12,6 +12,7 @@ import (
 
 	mongo "github.com/TerrexTech/go-mongoutils/mongo"
 	"github.com/TerrexTech/uuuid"
+	"github.com/mongodb/mongo-go-driver/bson"
 	mgo "github.com/mongodb/mongo-go-driver/mongo"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -315,18 +316,21 @@ var _ = Describe("Mongo service test", func() {
 		req := `{"upc": 0, "sku": 0, "name": "", "origin": "", "total_weight": 0, "price": 0, "location": "", "date_arrived": 0, "expiry_date":0, "timestamp": 0}`
 		db := &Db{mgTable}
 		env := &Env{db}
-		err := env.DbTest.AddInventory([]byte(req))
+		_, err := env.DbTest.AddInventory([]byte(req))
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("Should add inventory in db", func() {
+	It("Should add inventory in db - AddInventory", func() {
 		// req := fmt.Sprintf("{\"end_date\": %d}", unixTime)
 
 		req := fmt.Sprintf(`{"upc": 222222222222, "sku": 22222222, "name": "Apple", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d}`, unixTime, unixTime, unixTime)
 		db := &Db{mgTable}
 		env := &Env{db}
-		err := env.DbTest.AddInventory([]byte(req))
+		insResult, err := env.DbTest.AddInventory([]byte(req))
 		Expect(err).ToNot(HaveOccurred())
+		// strIns := string(insResult)
+		// log.Println(strIns)
+		Expect(string(insResult)).To(Equal("1"))
 	})
 
 	It("Should not update inventory in db", func() {
@@ -388,8 +392,9 @@ var _ = Describe("Mongo service test", func() {
 		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d}`, unixTime, unixTime, unixTime)
 		db := &Db{mgTable}
 		env := &Env{db}
-		err := env.DbTest.AddInventory([]byte(req))
+		insResult, err := env.DbTest.AddInventory([]byte(req))
 		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
 
 		searchAdd := `[{"search_key": "name", "search_val": "Blah"}]`
 		results, err := env.DbTest.SearchDb([]byte(searchAdd))
@@ -417,8 +422,9 @@ var _ = Describe("Mongo service test", func() {
 		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s"}`, unixTime, unixTime, unixTime, inventory.DeviceID)
 		db := &Db{mgTable}
 		env := &Env{db}
-		err = env.DbTest.AddInventory([]byte(req))
+		insResult, err := env.DbTest.AddInventory([]byte(req))
 		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
 
 		req = fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "NOT Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s"}`, unixTime, unixTime, unixTime, inventory.DeviceID)
 
@@ -456,8 +462,9 @@ var _ = Describe("Mongo service test", func() {
 		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s"}`, unixTime, unixTime, unixTime, inventory.DeviceID)
 		db := &Db{mgTable}
 		env := &Env{db}
-		err = env.DbTest.AddInventory([]byte(req))
+		insResult, err := env.DbTest.AddInventory([]byte(req))
 		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
 
 		delBody := `[{"upc": 22222222, "sku": 22222211}]`
 
@@ -478,8 +485,9 @@ var _ = Describe("Mongo service test", func() {
 		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s"}`, unixTime, unixTime, unixTime, inventory.DeviceID)
 		db := &Db{mgTable}
 		env := &Env{db}
-		err = env.DbTest.AddInventory([]byte(req))
+		insResult, err := env.DbTest.AddInventory([]byte(req))
 		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
 
 		delBody := `[{"upc": 222222222232, "sku": 22222211}]`
 
@@ -489,46 +497,7 @@ var _ = Describe("Mongo service test", func() {
 		Expect(string(deleteResult)).To(Equal("1"))
 	})
 
-	// It("Should successfully unmarshal after adding ", func() {
-	// 	//Add first
-	// 	dUuid, err := uuuid.NewV4()
-	// 	inventory := Inventory{
-	// 		DeviceID: dUuid,
-	// 	}
-	// 	_, err = json.Marshal(&inventory)
-	// 	Expect(err).ToNot(HaveOccurred())
-
-	// 	req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
-	// 	db := &Db{mgTable}
-	// 	env := &Env{db}
-	// 	err = env.DbTest.AddInventory([]byte(req))
-	// 	Expect(err).ToNot(HaveOccurred())
-
-	// 	req = fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, int64(0), unixTime)
-	// 	invDel := []Inventory{}
-	// 	//Convert body of type []byte into type []model.Inventory{}
-	// 	err = json.Unmarshal([]byte(req), &invDel)
-	// 	if err != nil {
-	// 		err = errors.Wrap(err, "Unable to unmarshal - DeleteInventory")
-	// 		log.Println(err)
-	// 	}
-	// 	Expect(err).ToNot(HaveOccurred())
-	// })
-
-	It("Should unmarshal successfully", func() {
-		// var totalWeight float64
-		// var soldWeight float64
-		// var wasteWeight float64
-		// var donateWeight float64
-
-		// var tweight []float64
-		// var sweight []float64
-		// var wweight []float64
-		// var dweight []float64
-
-		endDate := time.Now().AddDate(0, 0, 20).Unix()
-		startDate := time.Now().AddDate(0, 0, -15).Unix()
-
+	It("Should successfully unmarshal after adding ", func() {
 		//Add first
 		dUuid, err := uuuid.NewV4()
 		inventory := Inventory{
@@ -540,57 +509,659 @@ var _ = Describe("Mongo service test", func() {
 		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
 		db := &Db{mgTable}
 		env := &Env{db}
-		err = env.DbTest.AddInventory([]byte(req))
+		insResult, err := env.DbTest.AddInventory([]byte(req))
 		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		req = fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, int64(0), unixTime)
+		invDel := []Inventory{}
+		//Convert body of type []byte into type []model.Inventory{}
+		err = json.Unmarshal([]byte(req), &invDel)
+		if err != nil {
+			err = errors.Wrap(err, "Unable to unmarshal - DeleteInventory")
+			log.Println(err)
+		}
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("Should unmarshal successfully after getting inv data from SearchDb - CompareInvGraph", func() {
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
+		db := &Db{mgTable}
+		env := &Env{db}
+		// err = env.DbTest.AddInventory([]byte(req))
+		// Expect(err).ToNot(HaveOccurred())
 
 		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
 
 		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
 		Expect(err).ToNot(HaveOccurred())
-		log.Println(string(searchInv))
 
-		invForGraph := []Inventory{}
+		invForGraph := []InvDashboard{}
 		// Convert body of type []byte into type []model.Inventory{}
 		err = json.Unmarshal(searchInv, &invForGraph)
 		Expect(err).ToNot(HaveOccurred())
+	})
 
-		// for _, v := range invForGraph {
-		// 	totalWeight = v.TotalWeight + totalWeight
-		// 	tweight = append(tweight, totalWeight)
+	It("Should get total weight, sold weight, waste weight and donate weight - CompareInvGraph", func() {
+		var totalWeight float64
+		var soldWeight float64
+		var wasteWeight float64
+		var donateWeight float64
 
-		// 	soldWeight = v.SoldWeight + soldWeight
-		// 	sweight = append(sweight, soldWeight)
+		var tweight []float64
+		var sweight []float64
+		var wweight []float64
+		var dweight []float64
 
-		// 	wasteWeight = v.WasteWeight + wasteWeight
-		// 	wweight = append(wweight, wasteWeight)
+		toWeight := float64(12)
+		soWeight := float64(8)
+		waWeight := float64(2)
+		doWeight := float64(2)
 
-		// 	donateWeight = v.DonateWeight + donateWeight
-		// 	dweight = append(dweight, donateWeight)
-		// }
+		dropTestDatabase()
 
-		// log.Println(totalWeight)
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
 
-		// invSearch := []InvSearch{}
-		// err = json.Unmarshal(searchInv, &invSearch)
-		// Expect(err).ToNot(HaveOccurred())
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
 
-		// log.Println(invSearch)
-		// // var totalResult []byte
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
 
-		// dash := make(map[int]InvDashboard)
-		// // dash := []InvDashboard{}
-		// for i, v := range invSearch {
-		// 	dash[i] = InvDashboard{
-		// 		TotalWeight:  tweight[i],
-		// 		SoldWeight:   sweight[i],
-		// 		WasteWeight:  wweight[i],
-		// 		DonateWeight: dweight[i],
-		// 		Dates:        v.StartDate,
-		// 	}
-		// }
-		// totalResult, err := json.Marshal(dash)
-		// Expect(err).ToNot(HaveOccurred())
-		// log.Println(totalResult)
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
 
+		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
+
+		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
+		Expect(err).ToNot(HaveOccurred())
+
+		invDashGraph := []InvDashboard{}
+		// Convert body of type []byte into type []model.Inventory{}
+		err = json.Unmarshal(searchInv, &invDashGraph)
+		Expect(err).ToNot(HaveOccurred())
+
+		for _, v := range invDashGraph {
+			totalWeight = v.TotalWeight + totalWeight
+			tweight = append(tweight, totalWeight)
+
+			soldWeight = v.SoldWeight + soldWeight
+			sweight = append(sweight, soldWeight)
+
+			wasteWeight = v.WasteWeight + wasteWeight
+			wweight = append(wweight, wasteWeight)
+
+			donateWeight = v.DonateWeight + donateWeight
+			dweight = append(dweight, donateWeight)
+		}
+
+		Expect(totalWeight).To(Equal(toWeight))
+		Expect(soldWeight).To(Equal(soWeight))
+		Expect(wasteWeight).To(Equal(waWeight))
+		Expect(donateWeight).To(Equal(doWeight))
+	})
+
+	It("Should unmarshal InvSearch successfully to get count of timestamps - CompareInvGraph", func() {
+		var totalWeight float64
+		var soldWeight float64
+		var wasteWeight float64
+		var donateWeight float64
+
+		var tweight []float64
+		var sweight []float64
+		var wweight []float64
+		var dweight []float64
+
+		toWeight := float64(12)
+		soWeight := float64(8)
+		waWeight := float64(2)
+		doWeight := float64(2)
+
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
+
+		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
+		Expect(err).ToNot(HaveOccurred())
+
+		invDashGraph := []InvDashboard{}
+		// Convert body of type []byte into type []model.Inventory{}
+		err = json.Unmarshal(searchInv, &invDashGraph)
+		Expect(err).ToNot(HaveOccurred())
+
+		for _, v := range invDashGraph {
+			totalWeight = v.TotalWeight + totalWeight
+			tweight = append(tweight, totalWeight)
+
+			soldWeight = v.SoldWeight + soldWeight
+			sweight = append(sweight, soldWeight)
+
+			wasteWeight = v.WasteWeight + wasteWeight
+			wweight = append(wweight, wasteWeight)
+
+			donateWeight = v.DonateWeight + donateWeight
+			dweight = append(dweight, donateWeight)
+		}
+
+		Expect(totalWeight).To(Equal(toWeight))
+		Expect(soldWeight).To(Equal(soWeight))
+		Expect(wasteWeight).To(Equal(waWeight))
+		Expect(donateWeight).To(Equal(doWeight))
+
+		invSearch := []InvSearch{}
+		err = json.Unmarshal(searchInv, &invSearch)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(invSearch)).To(Equal(1))
+	})
+
+	It("Should successfully marshal combination of total weight, sold weight, waste weight, donate weight and dates", func() {
+		var totalWeight float64
+		var soldWeight float64
+		var wasteWeight float64
+		var donateWeight float64
+
+		var tweight []float64
+		var sweight []float64
+		var wweight []float64
+		var dweight []float64
+
+		toWeight := float64(12)
+		soWeight := float64(8)
+		waWeight := float64(2)
+		doWeight := float64(2)
+
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
+
+		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
+		Expect(err).ToNot(HaveOccurred())
+
+		invDashGraph := []InvDashboard{}
+		// Convert body of type []byte into type []model.Inventory{}
+		err = json.Unmarshal(searchInv, &invDashGraph)
+		Expect(err).ToNot(HaveOccurred())
+
+		for _, v := range invDashGraph {
+			totalWeight = v.TotalWeight + totalWeight
+			tweight = append(tweight, totalWeight)
+
+			soldWeight = v.SoldWeight + soldWeight
+			sweight = append(sweight, soldWeight)
+
+			wasteWeight = v.WasteWeight + wasteWeight
+			wweight = append(wweight, wasteWeight)
+
+			donateWeight = v.DonateWeight + donateWeight
+			dweight = append(dweight, donateWeight)
+		}
+
+		Expect(totalWeight).To(Equal(toWeight))
+		Expect(soldWeight).To(Equal(soWeight))
+		Expect(wasteWeight).To(Equal(waWeight))
+		Expect(donateWeight).To(Equal(doWeight))
+
+		invSearch := []InvSearch{}
+		err = json.Unmarshal(searchInv, &invSearch)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(invSearch)).To(Equal(1))
+
+		dash := []InvDashboard{}
+
+		for i, v := range invSearch {
+			dash = append(dash, InvDashboard{
+				TotalWeight:  tweight[i],
+				SoldWeight:   sweight[i],
+				WasteWeight:  wweight[i],
+				DonateWeight: dweight[i],
+				Dates:        v.StartDate,
+			})
+		}
+		totalResult, err := json.Marshal(dash)
+		Expect(err).ToNot(HaveOccurred())
+		log.Println(string(totalResult))
+	})
+
+	It("Should successfully provide values for total weight, sold weight, waste weight, donate weight, dates - Complete run- CompareInvGraph", func() {
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
+
+		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
+		Expect(err).ToNot(HaveOccurred())
+
+		result, err := env.DbTest.CompareInvGraph([]byte(newReq), searchInv)
+		Expect(err).ToNot(HaveOccurred())
+		log.Println(string(result))
+	})
+
+	It("Should unmarshal successfully after getting inv data from SearchDb - ProdSoldPerHour", func() {
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
+		db := &Db{mgTable}
+		env := &Env{db}
+
+		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
+
+		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
+		Expect(err).ToNot(HaveOccurred())
+
+		invForGraph := []InvDashboard{}
+		// Convert body of type []byte into type []model.Inventory{}
+		err = json.Unmarshal(searchInv, &invForGraph)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("Should get sold weight", func() {
+		var soldWeight float64
+
+		var sweight []float64
+
+		soWeight := float64(8)
+
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
+
+		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
+		Expect(err).ToNot(HaveOccurred())
+
+		invDashGraph := []InvDashboard{}
+		// Convert body of type []byte into type []model.Inventory{}
+		err = json.Unmarshal(searchInv, &invDashGraph)
+		Expect(err).ToNot(HaveOccurred())
+
+		for _, v := range invDashGraph {
+
+			soldWeight = v.SoldWeight + soldWeight
+			sweight = append(sweight, soldWeight)
+		}
+
+		Expect(soldWeight).To(Equal(soWeight))
+	})
+
+	It("Should unmarshal InvSearch successfully to get count of timestamps - Prod per hour", func() {
+		var soldWeight float64
+
+		var sweight []float64
+
+		soWeight := float64(8)
+
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
+
+		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
+		Expect(err).ToNot(HaveOccurred())
+
+		invDashGraph := []InvDashboard{}
+		// Convert body of type []byte into type []model.Inventory{}
+		err = json.Unmarshal(searchInv, &invDashGraph)
+		Expect(err).ToNot(HaveOccurred())
+
+		for _, v := range invDashGraph {
+
+			soldWeight = v.SoldWeight + soldWeight
+			sweight = append(sweight, soldWeight)
+		}
+
+		Expect(soldWeight).To(Equal(soWeight))
+
+		invSearch := []InvSearch{}
+		err = json.Unmarshal(searchInv, &invSearch)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(invSearch)).To(Equal(1))
+	})
+
+	It("Should successfully marshal combination of sold weight and dates", func() {
+		var soldWeight float64
+
+		var sweight []float64
+
+		soWeight := float64(8)
+
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
+
+		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
+		Expect(err).ToNot(HaveOccurred())
+
+		invDashGraph := []InvDashboard{}
+		// Convert body of type []byte into type []model.Inventory{}
+		err = json.Unmarshal(searchInv, &invDashGraph)
+		Expect(err).ToNot(HaveOccurred())
+
+		for _, v := range invDashGraph {
+			soldWeight = v.SoldWeight + soldWeight
+			sweight = append(sweight, soldWeight)
+		}
+
+		Expect(soldWeight).To(Equal(soWeight))
+
+		invSearch := []InvSearch{}
+		err = json.Unmarshal(searchInv, &invSearch)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(invSearch)).To(Equal(1))
+
+		dash := []InvDashboard{}
+
+		for i, v := range invSearch {
+			dash = append(dash, InvDashboard{
+				SoldWeight: sweight[i],
+				Dates:      v.StartDate,
+			})
+		}
+		totalResult, err := json.Marshal(dash)
+		Expect(err).ToNot(HaveOccurred())
+		log.Println(string(totalResult))
+	})
+
+	It("Should successfully provide values for sold weight, dates - Complete run- ProdSoldPerHour", func() {
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		endDate := time.Now().AddDate(0, 0, 20).Unix()
+		startDate := time.Now().AddDate(0, 0, -15).Unix()
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		newReq := fmt.Sprintf(`[{"start_date":%d, "end_date": %d}]`, startDate, endDate)
+
+		searchInv, err := env.DbTest.SearchDb([]byte(newReq))
+		Expect(err).ToNot(HaveOccurred())
+
+		result, err := env.DbTest.ProdSoldPerHour([]byte(newReq), searchInv)
+		Expect(err).ToNot(HaveOccurred())
+		log.Println(string(result))
+	})
+
+	It("Should successfully create aggregate results using pipeline - DistByWeight", func() {
+		// db := &Db{mgTable}
+		// env := &Env{db}
+		pipeline := bson.NewArray(
+			bson.VC.Document(
+				bson.NewDocument(
+					bson.EC.SubDocumentFromElements(
+						"$group",
+						bson.EC.String("_id", "$name"),
+						bson.EC.SubDocumentFromElements(
+							"total",
+							bson.EC.String("$sum", "$total_weight"),
+						),
+					),
+				),
+			),
+		)
+		_, err := mgTable.Aggregate(pipeline)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("Should get total number of products by name - DistByWeight", func() {
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		pipeline := bson.NewArray(
+			bson.VC.Document(
+				bson.NewDocument(
+					bson.EC.SubDocumentFromElements(
+						"$group",
+						bson.EC.String("_id", "$name"),
+						bson.EC.SubDocumentFromElements(
+							"total",
+							bson.EC.String("$sum", "$total_weight"),
+						),
+					),
+				),
+			),
+		)
+		aggResults, err := mgTable.Aggregate(pipeline)
+		Expect(err).ToNot(HaveOccurred())
+
+		var strValue string
+		var secValue float64
+
+		for _, v := range aggResults {
+			value := v.(map[string]interface{})
+			strValue = value["_id"].(string)
+			secValue = value["total"].(float64)
+		}
+
+		Expect(strValue).To(Equal("Blah"))
+		Expect(secValue).To(Equal(float64(12)))
+	})
+
+	It("Should successfully marshal total number of products by name - DistByWeight", func() {
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		pipeline := bson.NewArray(
+			bson.VC.Document(
+				bson.NewDocument(
+					bson.EC.SubDocumentFromElements(
+						"$group",
+						bson.EC.String("_id", "$name"),
+						bson.EC.SubDocumentFromElements(
+							"total",
+							bson.EC.String("$sum", "$total_weight"),
+						),
+					),
+				),
+			),
+		)
+		aggResults, err := mgTable.Aggregate(pipeline)
+		Expect(err).ToNot(HaveOccurred())
+
+		var strValue string
+		var secValue float64
+		dist := []InvDashboard{}
+
+		for _, v := range aggResults {
+			value := v.(map[string]interface{})
+			strValue = value["_id"].(string)
+			secValue = value["total"].(float64)
+			dist = append(dist, InvDashboard{
+				ProdName:   strValue,
+				ProdWeight: secValue,
+			})
+		}
+
+		Expect(strValue).To(Equal("Blah"))
+		Expect(secValue).To(Equal(float64(12)))
+
+		distWeight, err := json.Marshal(&dist)
+		Expect(err).ToNot(HaveOccurred())
+
+		err = json.Unmarshal(distWeight, &dist)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(dist[0].ProdName).To(Equal("Blah"))
+		Expect(dist[0].ProdWeight).To(Equal(float64(12)))
+	})
+
+	It("Should successfully provide total weight categorized for products - DistByWeight", func() {
+		dropTestDatabase()
+
+		dUuid, err := uuuid.NewV4()
+		inventory := Inventory{
+			DeviceID: dUuid,
+		}
+
+		_, err = json.Marshal(&inventory)
+		Expect(err).ToNot(HaveOccurred())
+
+		req := fmt.Sprintf(`{"upc": 222222222232, "sku": 22222211, "name": "Blah", "origin": "Canada", "total_weight": 12, "price": 34, "location": "M201", "date_arrived": %d, "expiry_date":%d, "timestamp":%d, "device_id": "%s", "sold_weight": 8, "waste_weight": 2, "donate_weight": 2}`, unixTime, unixTime, unixTime, inventory.DeviceID)
+		db := &Db{mgTable}
+		env := &Env{db}
+		insResult, err := env.DbTest.AddInventory([]byte(req))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(insResult)).To(Equal("1"))
+
+		dist := []InvDashboard{}
+
+		distWeight, err := env.DbTest.DistByWeight()
+		Expect(err).ToNot(HaveOccurred())
+
+		err = json.Unmarshal(distWeight, &dist)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(dist[0].ProdName).To(Equal("Blah"))
+		Expect(dist[0].ProdWeight).To(Equal(float64(12)))
 	})
 })

@@ -57,7 +57,7 @@ func GenerateDataForInv() Inventory {
 	randWasteWeight := generateRandomValue(1, 80)
 
 	inventory := Inventory{
-		// ItemID:       generateNewUUID(),
+		ItemID:       generateNewUUID(),
 		UPC:          GenFakeBarcode("upc"),
 		SKU:          GenFakeBarcode("sku"),
 		RsCustomerID: generateNewUUID(),
