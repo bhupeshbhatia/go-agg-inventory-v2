@@ -8,10 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Datastore interface {
-	CreateDataMongo()
-}
-
 type Db struct {
 	Collection *mongo.Collection
 }

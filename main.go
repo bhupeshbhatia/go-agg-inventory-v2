@@ -10,16 +10,14 @@ import (
 	"github.com/TerrexTech/go-commonutils/commonutil"
 
 	"github.com/bhupeshbhatia/go-agg-inventory-v2/model"
-	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
-	"github.com/urfave/negroni"
 )
 
 const AGGREGATE_ID = 2
 
 type Env struct {
-	inv model.Datastore
+	db model.Datastore
 }
 
 func ErrorStackTrace(err error) string {
@@ -32,21 +30,21 @@ func ErrorStackTrace(err error) string {
 // 	return router
 // }
 
-func setAuthenticationRoute(router *mux.Router, env *Env) *mux.Router {
-	// router.HandleFunc("/add-product", service.AddInventory).Methods("POST", "OPTIONS")
-	// router.HandleFunc("/update-product", service.UpdateInventory).Methods("POST", "OPTIONS")
-	// router.HandleFunc("/delete-product", service.DeleteInventory).Methods("POST", "OPTIONS")
-	// router.HandleFunc("/search-range", service.TimeSearchInTable).Methods("POST", "OPTIONS")
-	router.HandleFunc("/create-data", env.LoadDataInMongo).Methods("GET", "OPTIONS")
-	router.HandleFunc("/load-table", env.LoadInventoryTable).Methods("POST", "OPTIONS")
-	// router.HandleFunc("/dist-weight", service.DistributionByWeight).Methods("GET", "OPTIONS")
-	// router.HandleFunc("/twsalewaste", service.TotalWeightSoldWasteDonatePerDay).Methods("POST", "OPTIONS")
-	// router.HandleFunc("/search-table", service.SearchInvTable).Methods("POST", "OPTIONS")
+// func setAuthenticationRoute(router *mux.Router, env *Env) *mux.Router {
+// 	// router.HandleFunc("/add-product", service.AddInventory).Methods("POST", "OPTIONS")
+// 	// router.HandleFunc("/update-product", service.UpdateInventory).Methods("POST", "OPTIONS")
+// 	// router.HandleFunc("/delete-product", service.DeleteInventory).Methods("POST", "OPTIONS")
+// 	// router.HandleFunc("/search-range", service.TimeSearchInTable).Methods("POST", "OPTIONS")
+// 	router.HandleFunc("/create-data", env.LoadDataInMongo).Methods("GET", "OPTIONS")
+// 	router.HandleFunc("/load-table", env.LoadInventoryTable).Methods("POST", "OPTIONS")
+// 	// router.HandleFunc("/dist-weight", service.DistributionByWeight).Methods("GET", "OPTIONS")
+// 	// router.HandleFunc("/twsalewaste", service.TotalWeightSoldWasteDonatePerDay).Methods("POST", "OPTIONS")
+// 	// router.HandleFunc("/search-table", service.SearchInvTable).Methods("POST", "OPTIONS")
 
-	// router.HandleFunc("/perhr-sale", service.ProdSoldPerHour).Methods("POST", "OPTIONS")
+// 	// router.HandleFunc("/perhr-sale", service.ProdSoldPerHour).Methods("POST", "OPTIONS")
 
-	return router
-}
+// 	return router
+// }
 
 func main() {
 	err := godotenv.Load()
@@ -94,13 +92,20 @@ func main() {
 	//This Env is in file route_handlers.go
 	env := &Env{db}
 
-	router := mux.NewRouter()
-	router = setAuthenticationRoute(router, env)
+	// router := mux.NewRouter()
+	// router = setAuthenticationRoute(router, env)
 
-	n := negroni.Classic()
-	n.UseHandler(router)
+	// n := negroni.Classic()
+	// n.UseHandler(router)
 
-	http.ListenAndServe(":8080", n)
+	// http.ListenAndServe(":8080", n)
+
+	http.HandleFunc("/create-data", env.LoadDataInMongo)
+	http.HandleFunc("/load-table", env.LoadInventoryTable)
+	http.HandleFunc("/add-inv", env.AddInv)
+	http.HandleFunc("/up-inv", env.UpdateInv)
+	http.HandleFunc("/del-inv", env.DeleteInv)
+	http.ListenAndServe(":8080", nil)
 }
 
 func (env *Env) LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
@@ -145,9 +150,179 @@ func (env *Env) LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	totalResult, err := env.inv.PopulateInvTable(body)
+	totalResult, err := env.db.SearchDb(body)
 
 	w.Write(totalResult)
+}
+
+func (env *Env) AddInv(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	err = env.db.AddInventory(body)
+
+	// w.Write(insertResult)
+}
+
+func (env *Env) UpdateInv(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	updateResult, err := env.db.UpdateInventory(body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.Write(updateResult.([]byte))
+}
+
+func (env *Env) DeleteInv(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	delResult, err := env.db.DeleteInventory(body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.Write(delResult)
+}
+
+func (env *Env) TotalGraph(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	inv, err := env.db.SearchDb(body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	results, err := env.db.CompareInvGraph(inv)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.Write(results)
+}
+
+func (env *Env) SoldPerHr(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	inv, err := env.db.SearchDb(body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	results, err := env.db.ProdSoldPerHour(inv)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.Write(results)
+}
+
+func (env *Env) DistWeight(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		return
+	}
+
+	results, err := env.db.DistByWeight(body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.Write(results)
 }
 
 //----------------------------------------------------------
