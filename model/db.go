@@ -16,14 +16,16 @@ import (
 
 type Datastore interface {
 	Collection() *mongo.Collection
-	CreateDataMongo() ([]byte, error)
-	SearchDb(body []byte) ([]byte, error)
+	CreateDataMongo(numOfVal int) ([]byte, error)
+	SearchByDate(body []byte) ([]byte, error)
+	SearchByKeyVal(body []byte) ([]byte, error)
 	AddInventory(body []byte) ([]byte, error)
 	UpdateInventory(body []byte) (*mgo.UpdateResult, error)
 	DeleteInventory(body []byte) ([]byte, error)
 	CompareInvGraph(toSearch []byte, invResultsAfterSearch []byte) ([]byte, error)
 	ProdSoldPerHour(toSearch []byte, invResultsAfterSearch []byte) ([]byte, error)
 	DistByWeight() ([]byte, error)
+	GenForAddInv() ([]byte, error)
 }
 
 type Db struct {
@@ -40,14 +42,17 @@ type DbConfig struct {
 }
 
 //===============================================
-type InvSearch struct {
-	EndDate   int64       `bson:"end_date,omitempty" json:"end_date,omitempty"`
-	StartDate int64       `bson:"start_date,omitempty" json:"start_date,omitempty"`
+type InvSearchDate struct {
+	EndDate   int64 `bson:"end_date,omitempty" json:"end_date,omitempty"`
+	StartDate int64 `bson:"start_date,omitempty" json:"start_date,omitempty"`
+}
+
+type InvSearchKeyVal struct {
 	SearchKey string      `bson:"search_key,omitempty" json:"search_key,omitempty"`
 	SearchVal interface{} `bson:"search_val,omitempty" json:"search_val,omitempty"`
 }
 
-func (i *InvSearch) UnmarshalJSON(search []byte) error {
+func (i *InvSearchKeyVal) UnmarshalJSON(search []byte) error {
 	m := make(map[string]interface{})
 	err := json.Unmarshal(search, &m)
 	if err != nil {
@@ -69,16 +74,17 @@ func (i *InvSearch) UnmarshalJSON(search []byte) error {
 		}
 	}
 
-	if i.SearchKey == "upc" || i.SearchKey == "sku" || i.SearchKey == "arrival_date" || i.SearchKey == "expiry_date" {
+	if i.SearchKey == "upc" || i.SearchKey == "sku" || i.SearchKey == "arrival_date" || i.SearchKey == "expiry_date" || i.SearchKey == "prod_quantity" {
 		searchType := reflect.TypeOf(m["search_val"]).Kind()
 		if m["search_val"] != nil && searchType != reflect.Int64 {
 			val, err := strconv.Atoi((m["search_val"]).(string))
 			if err != nil {
-				err = errors.Wrap(err, "Cannot convert search_val to Int64s - UnmarshalJSON - InvSearch")
+				err = errors.Wrap(err, "Cannot convert search_val to Int64s - UnmarshalJSON - InvSearchKeyVal")
 				return err
 			}
 			i.SearchVal = int64(val)
 		}
+
 	}
 
 	if i.SearchKey == "sale_price" || i.SearchKey == "sold_weight" {
@@ -86,25 +92,12 @@ func (i *InvSearch) UnmarshalJSON(search []byte) error {
 		if m["search_val"] != nil && searchType != reflect.Float64 {
 			val, err := strconv.ParseFloat((m["search_val"]).(string), 64)
 			if err != nil {
-				err = errors.Wrap(err, "Cannot convert search_val to Float64 - UnmarshalJSON - InvSearch")
+				err = errors.Wrap(err, "Cannot convert search_val to Float64 - UnmarshalJSON - InvSearchKeyVal")
 				return err
 			}
 			i.SearchVal = val
 		}
 	}
-
-	// if m["name"] != nil {
-	// 	i.Name = m["name"].(string)
-	// }
-
-	// if m["origin"] != nil {
-	// 	i.Origin = m["origin"].(string)
-	// }
-
-	// if m["location"] != nil {
-	// 	i.Location = m["location"].(string)
-	// }
-
 	return nil
 }
 
@@ -178,9 +171,9 @@ func (d *Db) Collection() *mongo.Collection {
 	return d.collection
 }
 
-func (db *Db) CreateDataMongo() ([]byte, error) {
+func (db *Db) CreateDataMongo(numOfVal int) ([]byte, error) {
 	newInventory := []Inventory{}
-	for i := 0; i < 5; i++ {
+	for i := 0; i < numOfVal; i++ {
 		newInventory = append(newInventory, GenerateDataForInv())
 	}
 
@@ -203,8 +196,8 @@ func (db *Db) CreateDataMongo() ([]byte, error) {
 	return marInv, nil
 }
 
-func (db *Db) SearchDb(body []byte) ([]byte, error) {
-	searchInDb := []InvSearch{}
+func (db *Db) SearchByDate(body []byte) ([]byte, error) {
+	searchInDb := []InvSearchDate{}
 
 	var findResults []interface{}
 
@@ -234,16 +227,6 @@ func (db *Db) SearchDb(body []byte) ([]byte, error) {
 				},
 			})
 		}
-
-		if val.StartDate == 0 && val.EndDate == 0 &&
-			val.SearchKey != "" &&
-			val.SearchVal != "" {
-			findResults, err = db.collection.Find(map[string]interface{}{
-				val.SearchKey: map[string]interface{}{
-					"$eq": &val.SearchVal,
-				},
-			})
-		}
 	}
 
 	if err != nil {
@@ -255,7 +238,7 @@ func (db *Db) SearchDb(body []byte) ([]byte, error) {
 	//length
 	if len(findResults) == 0 {
 		msg := "No results found - SearchInDb"
-		return []byte(msg), nil
+		return nil, errors.New(msg)
 	}
 
 	inventory := []Inventory{}
@@ -274,6 +257,120 @@ func (db *Db) SearchDb(body []byte) ([]byte, error) {
 	}
 	return totalResult, nil
 }
+
+func (db *Db) SearchByKeyVal(body []byte) ([]byte, error) {
+	searchInDb := []InvSearchKeyVal{}
+
+	var findResults []interface{}
+
+	//Read the body - so unmarshal
+	err := json.Unmarshal(body, &searchInDb)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to unmarshal - SearchDb")
+		log.Println(err)
+		return nil, err
+	}
+
+	for _, v := range searchInDb {
+		if v.SearchKey != "" && v.SearchVal != "" {
+			findResults, err = db.collection.Find(map[string]interface{}{
+				v.SearchKey: map[string]interface{}{
+					"$eq": &v.SearchVal,
+				},
+			})
+		}
+	}
+
+	if err != nil {
+		err = errors.Wrap(err, "Error while fetching product.")
+		log.Println(err)
+		return nil, err
+	}
+
+	//length
+	if len(findResults) == 0 {
+		msg := "No results found - SearchInDb"
+		return nil, errors.New(msg)
+	}
+
+	inventory := []Inventory{}
+
+	for _, v := range findResults {
+		resultInv := v.(*Inventory)
+		inventory = append(inventory, *resultInv)
+	}
+
+	//Marshal into []byte
+	totalResult, err := json.Marshal(&inventory)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to create response body")
+		log.Println(err)
+		return nil, err
+	}
+	return totalResult, nil
+}
+
+// func (db *Db) SearchByDate(body []byte) ([]byte, error) {
+// 	searchInDb := []InvSearchDate{}
+
+// 	var findResults []interface{}
+
+// 	//Read the body - so unmarshal
+// 	err := json.Unmarshal(body, &searchInDb)
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Unable to unmarshal - SearchDb")
+// 		log.Println(err)
+// 		return nil, err
+// 	}
+
+// 	for _, val := range searchInDb {
+// 		if val.StartDate != 0 && val.EndDate != 0 {
+// 			//Find
+// 			findResults, err = db.collection.Find(map[string]interface{}{
+// 				"timestamp": map[string]int64{
+// 					"$lte": val.EndDate,
+// 					"$gte": val.StartDate,
+// 				},
+// 			})
+// 		}
+
+// 		if val.StartDate == 0 && val.EndDate != 0 {
+// 			findResults, err = db.collection.Find(map[string]interface{}{
+// 				"timestamp": map[string]int64{
+// 					"$lte": val.EndDate,
+// 				},
+// 			})
+// 		}
+// 	}
+
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Error while fetching product.")
+// 		log.Println(err)
+// 		return nil, err
+// 	}
+
+// 	//length
+// 	if len(findResults) == 0 {
+// 		msg := "No results found - SearchInDb"
+// 		return []byte(msg), nil
+// 	}
+
+// 	inventory := []Inventory{}
+
+// 	for _, v := range findResults {
+// 		resultInv := v.(*Inventory)
+// 		inventory = append(inventory, *resultInv)
+// 	}
+
+// 	//Marshal into []byte
+// 	totalResult, err := json.Marshal(&inventory)
+// 	if err != nil {
+// 		err = errors.Wrap(err, "Unable to create response body")
+// 		log.Println(err)
+// 		return nil, err
+// 	}
+// 	return totalResult, nil
+// }
 
 func (db *Db) AddInventory(body []byte) ([]byte, error) {
 
@@ -412,8 +509,7 @@ func (db *Db) DeleteInventory(body []byte) ([]byte, error) {
 
 	for _, inVal := range inventory {
 		deleteResult, err := db.collection.DeleteMany(&Inventory{
-			UPC: inVal.UPC,
-			SKU: inVal.SKU,
+			ItemID: inVal.ItemID,
 		})
 		if err != nil {
 			err = errors.Wrap(err, "Unable to delete event")
@@ -423,6 +519,7 @@ func (db *Db) DeleteInventory(body []byte) ([]byte, error) {
 		if deleteResult.DeletedCount > 0 {
 			delCount = delCount + 1
 		}
+		log.Println(deleteResult)
 	}
 	count := strconv.Itoa(delCount)
 	return []byte(count), nil
@@ -441,6 +538,8 @@ func (db *Db) CompareInvGraph(toSearch []byte, invResultsAfterSearch []byte) ([]
 
 	invDashGraph := []InvDashboard{}
 	//Convert body of type []byte into type []model.Inventory{}
+
+	log.Println(string(invResultsAfterSearch))
 	err := json.Unmarshal(invResultsAfterSearch, &invDashGraph)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to unmarshal - CompareInvGraph")
@@ -462,7 +561,7 @@ func (db *Db) CompareInvGraph(toSearch []byte, invResultsAfterSearch []byte) ([]
 		dweight = append(dweight, donateWeight)
 	}
 
-	invSearch := []InvSearch{}
+	invSearch := []InvSearchDate{}
 
 	err = json.Unmarshal(toSearch, &invSearch)
 	if err != nil {
@@ -482,7 +581,7 @@ func (db *Db) CompareInvGraph(toSearch []byte, invResultsAfterSearch []byte) ([]
 			SoldWeight:   sweight[i],
 			WasteWeight:  wweight[i],
 			DonateWeight: dweight[i],
-			Dates:        v.StartDate,
+			Dates:        v.EndDate,
 		}
 	}
 
@@ -514,7 +613,7 @@ func (db *Db) ProdSoldPerHour(toSearch []byte, invResultsAfterSearch []byte) ([]
 		sweight = append(sweight, soldWeight)
 	}
 
-	invSearch := []InvSearch{}
+	invSearch := []InvSearchDate{}
 	err = json.Unmarshal(toSearch, &invSearch)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to Unmarshal timestamp from body - TwSaleWasteDonate")
@@ -585,4 +684,18 @@ func (db *Db) DistByWeight() ([]byte, error) {
 	}
 
 	return distWeight, nil
+}
+
+func (db *Db) GenForAddInv() ([]byte, error) {
+	genData := GenerateDataForInv()
+
+	inventory := []Inventory{}
+	inventory = append(inventory, genData)
+
+	jsonWithInvData, err := json.Marshal(&inventory)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	return jsonWithInvData, nil
 }

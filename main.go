@@ -110,6 +110,7 @@ func main() {
 	http.HandleFunc("/sold-inv", env.SoldPerHr)
 	http.HandleFunc("/dist-inv", env.DistWeight)
 	http.HandleFunc("/search-inv", env.SearchTable)
+	http.HandleFunc("/gen-data", env.GenDataForAdd)
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -126,13 +127,35 @@ func (env *Env) LoadDataInMongo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// DB connection
-	insertedData, err := env.db.CreateDataMongo()
+	insertedData, err := env.db.CreateDataMongo(100)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to create new data in mongo")
 		log.Println(err)
 		return
 	}
 	w.Write(insertedData)
+}
+
+func (env *Env) GenDataForAdd(w http.ResponseWriter, r *http.Request) {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	totalResult, err := env.db.GenForAddInv()
+	if err != nil {
+		err = errors.Wrap(err, "Unable to read the request body")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Write(totalResult)
 }
 
 func (env *Env) LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
@@ -155,8 +178,13 @@ func (env *Env) LoadInventoryTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	totalResult, err := env.db.SearchDb(body)
-
+	totalResult, err := env.db.SearchByDate(body)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to get results - LoadInvTable")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	w.Write(totalResult)
 }
 
@@ -179,7 +207,7 @@ func (env *Env) SearchTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invAfterSearch, err := env.db.SearchDb(body)
+	invAfterSearch, err := env.db.SearchByKeyVal(body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
 		log.Println(err)
@@ -294,7 +322,14 @@ func (env *Env) TotalGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invAfterSearch, err := env.db.SearchDb(body)
+	_, err = env.db.CreateDataMongo(1)
+	if err != nil {
+		err = errors.Wrap(err, "Unable to insert new data - TotalGraph")
+		log.Println(err)
+		return
+	}
+
+	invAfterSearch, err := env.db.SearchByDate(body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
 		log.Println(err)
@@ -327,7 +362,7 @@ func (env *Env) SoldPerHr(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invAfterSearch, err := env.db.SearchDb(body)
+	invAfterSearch, err := env.db.SearchByDate(body)
 	if err != nil {
 		err = errors.Wrap(err, "Unable to read the request body")
 		log.Println(err)

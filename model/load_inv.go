@@ -55,6 +55,7 @@ func GenerateDataForInv() Inventory {
 	randPrice := generateRandomValue(5000, 10000)
 	randTotalWeight := generateRandomValue(100, 300)
 	randWasteWeight := generateRandomValue(1, 80)
+	// randProdQuantity := generateRandomValue(100, 300)
 
 	inventory := Inventory{
 		ItemID:       generateNewUUID(),
@@ -73,13 +74,17 @@ func GenerateDataForInv() Inventory {
 		DateArrived:  time.Now().Add(time.Duration(randDateArr) * time.Hour).Unix(),
 		ExpiryDate:   time.Now().AddDate(0, 0, int(randExpiry)).Unix(),
 		// Timestamp:    time.Now().Add(time.Duration(randTimestamp) * time.Hour).Unix(),
-		Timestamp: time.Now().Add(time.Duration(1) * time.Hour).Unix(),
+		Timestamp: time.Now().Unix(),
 		// DateSold:     time.Now().Add(time.Duration(randDatesold) * time.Hour).Unix(),
 		DateSold: time.Now().Add(time.Duration(randDatesold) * time.Hour).Unix(),
 
 		SalePrice:  float64(generateRandomValue(2, 4)),
 		SoldWeight: float64(generateRandomValue(randWasteWeight, randTotalWeight)),
 	}
+
+	// if inventory.Name == "Lettuce" {
+	// 	inventory.ProdQuantity = randProdQuantity
+	// }
 	return inventory
 }
 

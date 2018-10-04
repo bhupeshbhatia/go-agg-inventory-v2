@@ -33,6 +33,7 @@ type Inventory struct {
 	DateSold         int64             `bson:"date_sold,omitempty" json:"date_sold,omitempty"`
 	SalePrice        float64           `bson:"sale_price,omitempty" json:"sale_price,omitempty"`
 	SoldWeight       float64           `bson:"sold_weight,omitempty" json:"sold_weight,omitempty"`
+	ProdQuantity     int64             `bson:"prod_quantity,omitempty" json:"prod_quantity,omitempty"`
 }
 
 type marshalInventory struct {
@@ -57,6 +58,7 @@ type marshalInventory struct {
 	DateSold         int64             `bson:"date_sold,omitempty" json:"date_sold,omitempty"`
 	SalePrice        float64           `bson:"sale_price,omitempty" json:"sale_price,omitempty"`
 	SoldWeight       float64           `bson:"sold_weight,omitempty" json:"sold_weight,omitempty"`
+	ProdQuantity     int64             `bson:"prod_quantity,omitempty" json:"prod_quantity,omitempty"`
 }
 
 //Inventory represents inventory collection
@@ -429,12 +431,15 @@ func (i *Inventory) UnmarshalBSON(in []byte) error {
 		}
 	}
 
-	// if m["sale_price"] != nil {
-	// 	i.SalePrice = m["sale_price"].(float64)
-	// }
-
-	// if m["sold_weight"] != nil {
-	// 	i.SoldWeight = m["sold_weight"].(float64)
+	// if m["prod_quantity"] != nil {
+	// 	prodQuantityType := reflect.TypeOf(m["prod_quantity"]).Kind()
+	// 	i.ProdQuantity, ok = m["prod_quantity"].(int64)
+	// 	if !ok {
+	// 		if prodQuantityType != reflect.Int64 {
+	// 			val, _ := strconv.Atoi((m["prod_quantity"]).(string))
+	// 			i.ProdQuantity = int64(val)
+	// 		}
+	// 	}
 	// }
 	return nil
 }
@@ -678,30 +683,15 @@ func (i *Inventory) UnmarshalJSON(in []byte) error {
 		}
 	}
 
-	// var ok bool
-	// i.Name = m["name"].(string)
-	// i.Origin = m["origin"].(string)
-	// i.TotalWeight = m["total_weight"].(float64)
-	// i.Price, ok = m["price"].(float64)
-	// if !ok {
-	// 	log.Println("Error converting price to float64")
-	// }
-	// i.Location = m["location"].(string)
-	// i.DateArrived = m["date_arrived"].(int64)
-	// i.ExpiryDate = m["expiry_date"].(int64)
-	// i.Timestamp = m["timestamp"].(int64)
-	// i.WasteWeight = m["waste_weight"].(float64)
-	// i.DonateWeight = m["donate_weight"].(float64)
-	// if m["aggregate_version"] != nil {
-	// 	i.AggregateVersion = m["aggregate_version"].(int64)
-	// }
-	// if m["aggregate_id"] != nil {
-	// 	// i.AggregateID = m["aggregate_id"].(int8)
-	// }
-	// i.DateSold = m["date_sold"].(int64)
-	// i.SalePrice = m["sale_price"].(float64)
-	// if m["sold_weight"] != nil {
-	// 	i.SoldWeight = m["sold_weight"].(float64)
+	// if m["prod_quantity"] != nil {
+	// 	prodQuantityType := reflect.TypeOf(m["prod_quantity"]).Kind()
+	// 	i.ProdQuantity, ok = m["prod_quantity"].(int64)
+	// 	if !ok {
+	// 		if prodQuantityType != reflect.Int64 {
+	// 			val, _ := strconv.Atoi((m["prod_quantity"]).(string))
+	// 			i.ProdQuantity = int64(val)
+	// 		}
+	// 	}
 	// }
 
 	return nil
